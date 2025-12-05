@@ -1,7 +1,8 @@
 ﻿using System;
-using System.Windows; // 여기서도 System.Windows.MessageBox 등을 쓰지만, Application은 명시적으로 지정합니다.
-using System.Windows.Controls;
+using System.Linq; // Enumerable.OfType
 using System.Windows.Input;
+// [중요] System.Windows.Forms와 충돌 방지를 위해 using System.Windows 생략
+
 using AMPManager.Core;
 using AMPManager.Model;
 using AMPManager.View;
@@ -19,18 +20,16 @@ namespace AMPManager.ViewModel
 
         public ICommand LoginCommand { get; }
         public ICommand OpenSignUpCommand { get; }
-
         public Action? CloseAction { get; set; }
 
         public LoginViewModel()
         {
-            // 로그인 로직
             LoginCommand = new RelayCommand(o =>
             {
-                var passwordBox = o as PasswordBox;
+                // [중요] PasswordBox 명시
+                var passwordBox = o as System.Windows.Controls.PasswordBox;
                 string pw = passwordBox != null ? passwordBox.Password : "";
 
-                // 1. 비상용 마스터 계정 (1234/1234)
                 if (InputId == "1234" && pw == "1234")
                 {
                     LoggedInUser = new User("관리자(비상)", "1234", 2);
@@ -38,7 +37,6 @@ namespace AMPManager.ViewModel
                     return;
                 }
 
-                // 2. DB 계정 로그인
                 try
                 {
                     User? dbUser = _dbManager.Login(InputId, pw);
@@ -49,27 +47,35 @@ namespace AMPManager.ViewModel
                     }
                     else
                     {
-                        // 명시적으로 System.Windows.MessageBox 사용 (WinForms와 충돌 방지)
-                        System.Windows.MessageBox.Show("아이디 또는 비밀번호가 틀렸습니다.", "로그인 실패", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                        // [중요] MessageBox 명시
+                        System.Windows.MessageBox.Show("아이디/비번을 확인하세요.", "로그인 실패");
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Windows.MessageBox.Show($"DB 오류: {ex.Message}", "에러", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    System.Windows.MessageBox.Show($"DB 오류: {ex.Message}");
                 }
             });
 
-            // ★ 회원가입 버튼 클릭 시 실행 (수정된 부분)
             OpenSignUpCommand = new RelayCommand(o =>
             {
                 SignUpWindow signUp = new SignUpWindow();
 
-                // ★★★ [수정] Application -> System.Windows.Application 으로 명시 ★★★
-                if (System.Windows.Application.Current.MainWindow != null)
+                // [중요] Application 명시 (WinForms 충돌 방지)
+                var app = System.Windows.Application.Current;
+                if (app != null)
                 {
-                    signUp.Owner = System.Windows.Application.Current.MainWindow;
+                    if (app.MainWindow != null)
+                    {
+                        signUp.Owner = app.MainWindow;
+                    }
+                    else
+                    {
+                        // 로그인 창(활성화된 창)을 찾아서 Owner로 지정
+                        var active = app.Windows.OfType<System.Windows.Window>().SingleOrDefault(w => w.IsActive);
+                        if (active != null) signUp.Owner = active;
+                    }
                 }
-
                 signUp.ShowDialog();
             });
         }
