@@ -20,10 +20,16 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Border Grid.Column="0" Background="#2F2F3D" CornerRadius="5" Margin="5">
-                <Image Source="{Binding Cam1Path}" Stretch="Uniform" Margin="5"/>
+                <Grid>
+                    <TextBlock Text="Top View (Cam 1)" Foreground="#808080" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <Image Source="{Binding Cam1Path}" Stretch="Uniform"/>
+                </Grid>
             </Border>
             <Border Grid.Column="1" Background="#2F2F3D" CornerRadius="5" Margin="5">
-                <Image Source="{Binding Cam2Path}" Stretch="Uniform" Margin="5"/>
+                <Grid>
+                    <TextBlock Text="Side View (Cam 2)" Foreground="#808080" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    <Image Source="{Binding Cam2Path}" Stretch="Uniform"/>
+                </Grid>
             </Border>
         </Grid>
 
@@ -37,21 +43,26 @@
             <Border Grid.Column="0" Background="#2F2F3D" CornerRadius="10" Margin="5" Padding="10">
                 <Grid>
                     <TextBlock Text="형상 분석 (Shape)" Foreground="#00C1D4" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Top"/>
-                    <lvc:CartesianChart Series="{Binding ShapeSeriesCollection}" Margin="0,25,0,0" LegendLocation="Bottom" Hoverable="False" DataTooltip="{x:Null}">
+
+                    <lvc:CartesianChart Series="{Binding ShapeSeriesCollection}" 
+                                        VisualElements="{Binding ShapeVisuals}" Margin="0,25,0,0" LegendLocation="Bottom" Hoverable="False" DataTooltip="{x:Null}">
+
                         <lvc:CartesianChart.AxisX>
                             <lvc:Axis ShowLabels="True" MinValue="-150" MaxValue="150">
                                 <lvc:Axis.Separator>
-                                    <lvc:Separator Stroke="#444444" StrokeThickness="1" Step="50"/>
+                                    <lvc:Separator Stroke="#333333" StrokeThickness="1"/>
                                 </lvc:Axis.Separator>
                             </lvc:Axis>
                         </lvc:CartesianChart.AxisX>
+
                         <lvc:CartesianChart.AxisY>
                             <lvc:Axis ShowLabels="True" MinValue="-150" MaxValue="150">
                                 <lvc:Axis.Separator>
-                                    <lvc:Separator Stroke="#444444" StrokeThickness="1" Step="50"/>
+                                    <lvc:Separator Stroke="#333333" StrokeThickness="1"/>
                                 </lvc:Axis.Separator>
                             </lvc:Axis>
                         </lvc:CartesianChart.AxisY>
+
                     </lvc:CartesianChart>
                 </Grid>
             </Border>
@@ -70,7 +81,7 @@
                         <lvc:CartesianChart.AxisY>
                             <lvc:Axis ShowLabels="True" Sections="{Binding DeviationSections}">
                                 <lvc:Axis.Separator>
-                                    <lvc:Separator Stroke="#444444" StrokeThickness="1" StrokeDashArray="2"/>
+                                    <lvc:Separator Stroke="#333333" StrokeThickness="1" StrokeDashArray="2"/>
                                 </lvc:Axis.Separator>
                             </lvc:Axis>
                         </lvc:CartesianChart.AxisY>
@@ -85,14 +96,14 @@
                         <lvc:CartesianChart.AxisX>
                             <lvc:Axis ShowLabels="True" MinValue="-20" MaxValue="20">
                                 <lvc:Axis.Separator>
-                                    <lvc:Separator Stroke="#444444" StrokeThickness="1" Step="5"/>
+                                    <lvc:Separator Stroke="#333333" StrokeThickness="1" Step="5"/>
                                 </lvc:Axis.Separator>
                             </lvc:Axis>
                         </lvc:CartesianChart.AxisX>
                         <lvc:CartesianChart.AxisY>
                             <lvc:Axis ShowLabels="True" MinValue="-20" MaxValue="20">
                                 <lvc:Axis.Separator>
-                                    <lvc:Separator Stroke="#444444" StrokeThickness="1" Step="5"/>
+                                    <lvc:Separator Stroke="#333333" StrokeThickness="1" Step="5"/>
                                 </lvc:Axis.Separator>
                             </lvc:Axis>
                         </lvc:CartesianChart.AxisY>

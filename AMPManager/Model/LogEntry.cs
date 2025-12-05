@@ -68,5 +68,10 @@ namespace AMPManager.Model
 
         // 공통
         public Func<double, string> YFormatter { get; set; }
+
+        public VisualElementsCollection ShapeVisuals { get; set; }
+
+
+
     }
 }

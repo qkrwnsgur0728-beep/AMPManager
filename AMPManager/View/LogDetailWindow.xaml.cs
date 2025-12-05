@@ -4,9 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls; // TextBlock 사용
+using System.Windows.Shapes; // Ellipse 사용
 using Newtonsoft.Json.Linq;
-
-// ★ 충돌 방지 별칭
 using LiveCharts;
 using LiveCharts.Wpf;
 using LiveCharts.Defaults;
@@ -14,6 +14,7 @@ using WpfBrushes = System.Windows.Media.Brushes;
 using WpfColor = System.Windows.Media.Color;
 using WpfSolidColorBrush = System.Windows.Media.SolidColorBrush;
 using WpfDoubleCollection = System.Windows.Media.DoubleCollection;
+using System.Windows.Media; // FontWeight 사용
 
 namespace AMPManager.View
 {
@@ -40,11 +41,12 @@ namespace AMPManager.View
         private void InitializeGraphs(LogEntry log)
         {
             var measuredPoints = new ChartValues<ObservablePoint>();
-            var idealPoints = new ChartValues<ObservablePoint>();
+            var idealPoints = new ChartValues<ObservablePoint>(); // Ideal points for the shape
+
             double holeCx = 0, holeCy = 0;
             bool holeFound = false;
 
-            // [A] 데이터 파싱
+            // [A] 데이터 파싱 (Measured Contour)
             if (!string.IsNullOrWhiteSpace(log.MeasuredContour))
             {
                 try
@@ -55,12 +57,14 @@ namespace AMPManager.View
                     if (xArr != null && yArr != null)
                     {
                         for (int i = 0; i < xArr.Count; i++) measuredPoints.Add(new ObservablePoint(xArr[i], yArr[i]));
+                        // Measured points 닫기 (LineSeries 용)
                         if (measuredPoints.Count > 0) measuredPoints.Add(new ObservablePoint(measuredPoints[0].X, measuredPoints[0].Y));
                     }
                 }
                 catch { }
             }
 
+            // [A] 데이터 파싱 (Center Info)
             if (!string.IsNullOrWhiteSpace(log.MeasuredCenter))
             {
                 try
@@ -76,7 +80,7 @@ namespace AMPManager.View
                 catch { }
             }
 
-            // ★ DB의 정상 좌표 사용 (없으면 기본값)
+            // [A] 데이터 파싱 (TemplateData: Ideal Points)
             if (!string.IsNullOrWhiteSpace(log.TemplateData))
             {
                 try
@@ -87,39 +91,105 @@ namespace AMPManager.View
                     if (tx != null && ty != null)
                     {
                         for (int i = 0; i < tx.Count; i++) idealPoints.Add(new ObservablePoint(tx[i], ty[i]));
-                        if (idealPoints.Count > 0) idealPoints.Add(new ObservablePoint(idealPoints[0].X, idealPoints[0].Y));
                     }
                 }
                 catch { }
             }
 
-            if (idealPoints.Count == 0) // 기본 육각형
+            // 기본 육각형 (DB 데이터 없을 경우)
+            if (idealPoints.Count == 0)
             {
+                // P0(상단) 부터 시계방향
                 idealPoints.AddRange(new[] {
-                    new ObservablePoint(0, 63), new ObservablePoint(55, 33), new ObservablePoint(55, -33),
-                    new ObservablePoint(0, -63), new ObservablePoint(-55, -33), new ObservablePoint(-55, 33),
-                    new ObservablePoint(0, 63)
+                    new ObservablePoint(0, 63),   // P0
+                    new ObservablePoint(55, 33),  // P1
+                    new ObservablePoint(55, -33), // P2
+                    new ObservablePoint(0, -63),  // P3
+                    new ObservablePoint(-55, -33),// P4
+                    new ObservablePoint(-55, 33)  // P5
                 });
             }
 
-            // [Graph 1] 형상 (직선 연결)
+            // ------------------------------------------------------------------
+            // ★★★ P0 ~ P5 라벨 및 중앙 점 추가 로직 (VisualElements) ★★★
+            // ------------------------------------------------------------------
+            log.ShapeVisuals = new VisualElementsCollection();
+
+            // 1. 라벨 추가 (P0 ~ P5)
+            for (int i = 0; i < idealPoints.Count && i < 6; i++)
+            {
+                var point = idealPoints[i];
+
+                // 텍스트 위치 약간 바깥쪽으로 조정 (오프셋)
+                double offsetX = point.X * 0.1;
+                double offsetY = point.Y * 0.1;
+
+                // P0, P3의 X축 오프셋 보정
+                if (Math.Abs(point.X) < 1) offsetX = (point.Y > 0) ? -20 : -20;
+
+                log.ShapeVisuals.Add(new VisualElement
+                {
+                    X = point.X + offsetX,
+                    Y = point.Y + offsetY,
+                    UIElement = new TextBlock
+                    {
+                        Text = $"P{i}",
+                        Foreground = WpfBrushes.White,
+                        FontSize = 14,
+                        FontWeight = FontWeights.Bold
+                    }
+                });
+            }
+
+            // 2. 중앙 점 (파란색 Cross)
+            log.ShapeVisuals.Add(new VisualElement
+            {
+                X = 0,
+                Y = 0,
+                UIElement = new System.Windows.Shapes.Ellipse
+                {
+                    Width = 8,
+                    Height = 8,
+                    Fill = WpfBrushes.White
+                }
+            });
+
+
+            // 닫힌 도형을 위해 Ideal points에 마지막 점 추가 (LineSeries 용)
+            if (idealPoints.Count > 0) idealPoints.Add(new ObservablePoint(idealPoints[0].X, idealPoints[0].Y));
+
+
+            // [Graph 1] 형상 (직선 연결) - Ref Edge 라인 추가됨
             log.ShapeSeriesCollection = new SeriesCollection {
+                // 1. Tolerance (공차 영역)
                 new LineSeries {
                     Title = "Tolerance", Values = idealPoints, PointGeometry = null,
                     Stroke = new WpfSolidColorBrush(WpfColor.FromArgb(80, 0, 255, 0)),
                     StrokeThickness = log.TolShape * 2, Fill = WpfBrushes.Transparent,
-                    LineSmoothness = 0 // ★ 직선
+                    LineSmoothness = 0
                 },
+                // 2. Ref Edge (중앙 -> P0 빨간 실선) ★ 추가됨
+                new LineSeries {
+                    Title = "Ref Edge",
+                    Values = new ChartValues<ObservablePoint> { new ObservablePoint(0, 0), new ObservablePoint(idealPoints[0].X, idealPoints[0].Y) },
+                    PointGeometry = null,
+                    Stroke = WpfBrushes.Red,
+                    StrokeThickness = 2,
+                    Fill = WpfBrushes.Transparent,
+                    LineSmoothness = 0
+                },
+                // 3. Ideal (회색 점선)
                 new LineSeries {
                     Title = "Ideal", Values = idealPoints, PointGeometry = DefaultGeometries.Circle, PointGeometrySize = 6,
                     Stroke = WpfBrushes.Gray, StrokeDashArray = new WpfDoubleCollection{2}, Fill = WpfBrushes.Transparent,
-                    LineSmoothness = 0 // ★ 직선
+                    LineSmoothness = 0
                 },
+                // 4. Measured (측정값 - 파란 실선)
                 new LineSeries {
                     Title = "Measured", Values = measuredPoints, PointGeometry = null,
                     Stroke = WpfBrushes.DodgerBlue, StrokeThickness = 2,
                     Fill = new WpfSolidColorBrush(WpfColor.FromArgb(30, 30, 144, 255)),
-                    LineSmoothness = 0 // ★ 직선
+                    LineSmoothness = 0
                 }
             };
 
@@ -133,7 +203,8 @@ namespace AMPManager.View
                 for (int i = 0; i < measuredPoints.Count - 1; i++)
                 {
                     deviations.Add(Math.Sqrt(measuredPoints[i].X * measuredPoints[i].X + measuredPoints[i].Y * measuredPoints[i].Y) - meanRadius);
-                    labels.Add("P" + i);
+                    // P0~P5 라벨링과 일치하도록 Deviation 그래프 라벨 수정
+                    labels.Add("P" + (i % 6).ToString());
                 }
                 if (deviations.Count > 0) deviations.Add(deviations[0]);
                 labels.Add("P0");
@@ -152,7 +223,7 @@ namespace AMPManager.View
                 new AxisSection { Value = -log.LimitFail, SectionWidth = log.LimitFail - log.LimitWarn, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(40, 255, 255, 0)) }
             };
 
-            // [Graph 3] 동심도
+            // [Graph 3] 동심도 (축 범위 -20 ~ 20)
             log.ConcentricitySeriesCollection = new SeriesCollection {
                 new ScatterSeries { Title="Body", Values=new ChartValues<ObservablePoint>{new ObservablePoint(0,0)}, PointGeometry=DefaultGeometries.Cross, MinPointShapeDiameter=20, Stroke=WpfBrushes.Black, StrokeThickness=2, Fill=WpfBrushes.Transparent },
                 new LineSeries { Title="Safe", Values=GetCircle(log.TolHole), PointGeometry=null, Stroke=WpfBrushes.Green, StrokeDashArray=new WpfDoubleCollection{2}, Fill=new WpfSolidColorBrush(WpfColor.FromArgb(30,0,255,0)) }
