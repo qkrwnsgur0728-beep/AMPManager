@@ -19,6 +19,7 @@ namespace AMPManager.Core
         // 선택 사항: 서버 응답 본문 전체를 담을 수도 있습니다.
         public object? Data { get; set; }
     }
+
     public class ApiService
     {
         private readonly HttpClient _client;
@@ -35,7 +36,7 @@ namespace AMPManager.Core
         // [1] 로그인
         public async Task<LoginResponse> LoginAsync(string id, string pw)
         {
-            // 1. 입력 유효성 검사 (JavaScript 코드의 if (!id || !pw) { ... } 부분과 유사)
+            // 1. 입력 유효성 검사
             if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(pw))
             {
                 return new LoginResponse
@@ -61,13 +62,10 @@ namespace AMPManager.Core
                 // 4. 응답 본문 읽기
                 var responseJson = await response.Content.ReadAsStringAsync();
 
-                // 5. 응답 본문을 상세 데이터로 역직렬화 (JavaScript의 const data = await response.json(); 부분과 유사)
-                // 서버 응답 형태에 따라 이 부분을 조정해야 할 수 있습니다. 
-                // 예시: 서버 응답이 { "detail": "로그인 실패 사유" } 형태라고 가정하고, 
-                // 이를 object로 받습니다. 실제 프로젝트에서는 특정 클래스로 매핑하는 것이 좋습니다.
+                // 5. 응답 본문을 상세 데이터로 역직렬화
                 var data = JsonConvert.DeserializeObject<dynamic>(responseJson);
 
-                // 6. 응답 상태 코드 확인 (JavaScript의 if (response.ok) { ... } 부분과 유사)
+                // 6. 응답 상태 코드 확인
                 if (response.IsSuccessStatusCode) // 2xx 상태 코드
                 {
                     return new LoginResponse
@@ -79,7 +77,6 @@ namespace AMPManager.Core
                 }
                 else // 4xx, 5xx 상태 코드 (로그인 실패)
                 {
-                    // 실패 시 서버가 보낸 메시지를 사용하거나, 기본 메시지 사용
                     string detailMessage = data?.detail?.ToString() ?? "로그인 실패";
 
                     return new LoginResponse
@@ -92,7 +89,6 @@ namespace AMPManager.Core
             }
             catch (HttpRequestException)
             {
-                // HTTP 요청 자체의 오류 (네트워크 문제, 서버 접속 실패 등)
                 return new LoginResponse
                 {
                     IsSuccess = false,
@@ -101,7 +97,6 @@ namespace AMPManager.Core
             }
             catch (Exception)
             {
-                // 기타 오류
                 return new LoginResponse
                 {
                     IsSuccess = false,
@@ -110,7 +105,7 @@ namespace AMPManager.Core
             }
         }
 
-        // [2] 로그 리스트 가져오기 (DB 조회)
+        // [2] 로그 리스트 가져오기 (DB 조회) - ★수정된 부분★
         public async Task<List<LogEntry>> GetLogsAsync(string date)
         {
             try
@@ -130,7 +125,9 @@ namespace AMPManager.Core
                     // 서버 데이터(timestamp, result)를 WPF 화면용(LogEntry)으로 변환
                     return list.Select(s => new LogEntry
                     {
-                        Id = s.mid,
+                        // [수정 완료] Id(읽기전용) 대신 MeasureId에 값을 할당합니다.
+                        MeasureId = s.mid,
+
                         Timestamp = s.timestamp,       // DB: measurement_time -> 화면: TIMESTAMP
                         PropertyName = s.product_name, // DB: product_name -> 화면: 제품명
                         Status = (s.result == "NG" ? "불량" : "정상") // DB: result -> 화면: 판정

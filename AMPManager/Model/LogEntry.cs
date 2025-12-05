@@ -1,43 +1,46 @@
 ﻿using System;
 using System.Windows.Media;
 using LiveCharts;
+using LiveCharts.Wpf;
 
 namespace AMPManager.Model
 {
-    // LogEntry.cs 파일에 이 코드를 사용하세요.
     public class LogEntry
     {
-        // =======================================================
-        // Measurements 테이블 필드 및 기존 정보
-        // =======================================================
+        // [1] DB 데이터
+        public int MeasureId { get; set; }
+        public int Id => MeasureId;
+
         public string Timestamp { get; set; }
+        public string Status { get; set; }
+        public string DefectReason { get; set; }
+        public string ProductId { get; set; }
         public string PropertyName { get; set; }
-        public int Id { get; set; } // 제품 ID
-        public string Status { get; set; } // 판정 결과 (정상/불량)
-        public string DefectReason { get; set; } // 비고/사유
 
-        // Measurements 테이블의 이미지 경로 필드
-        public string Cam1Path { get; set; } // cam1_path
-        public string Cam2Path { get; set; } // cam2_path
+        public string MeasuredContour { get; set; } // 측정 좌표 (JSON)
+        public string MeasuredCenter { get; set; }  // 중심 좌표 (JSON)
+        public string TemplateData { get; set; }    // ★ 정상 기준 좌표 (JSON)
 
-        // Measurements 테이블의 측정 수치 필드
-        public double HoleOffset { get; set; } // hole_offset (REAL)
-        public double AreaSize { get; set; } // area_size (REAL)
-        public double ModelScore { get; set; } // model_score (REAL)
+        public double HoleOffset { get; set; }
+        public double AreaSize { get; set; }
+        public double ModelScore { get; set; }
 
-        // =======================================================
-        // Product 테이블의 공차 기준 필드
-        // =======================================================
-        public double LimitFail { get; set; } // limit_fail (불합격 기준)
-        public double LimitWarn { get; set; } // limit_warn (경고 기준)
+        // [2] 기준값
+        public double LimitFail { get; set; } = 6.0;
+        public double LimitWarn { get; set; } = 4.5;
+        public double TolShape { get; set; } = 5.0;
+        public double TolHole { get; set; } = 5.0;
 
-        // =======================================================
-        // UI 및 그래프 관련 속성
-        // =======================================================
-        // 💡 Brush 타입 충돌을 피하기 위해 System.Windows.Media.Brush 타입 사용
+        // [3] 이미지
+        public string Cam1Path { get; set; }
+        public string Cam2Path { get; set; }
+
+        // [4] 그래프 바인딩용
         public Brush StatusColor { get; set; }
-        public SeriesCollection ChartSeriesCollection { get; set; }
-        public string[] ChartLabels { get; set; }
-        public Func<double, string> YFormatter { get; set; }
+        public SeriesCollection ShapeSeriesCollection { get; set; }
+        public SeriesCollection DeviationSeriesCollection { get; set; }
+        public SeriesCollection ConcentricitySeriesCollection { get; set; }
+        public string[] DeviationLabels { get; set; }
+        public SectionsCollection DeviationSections { get; set; }
     }
 }
