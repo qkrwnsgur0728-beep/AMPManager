@@ -23,8 +23,8 @@ namespace AMPManager.Core
         private readonly HttpClient _client;
 
         // ★ 서버 주소 (환경에 맞게 수정하세요)
-        //private const string BaseUrl = "http://192.168.0.6:8000";
-        private const string BaseUrl = "http://localhost:8000";
+        private const string BaseUrl = "http://192.168.0.28:8000";
+        //private const string BaseUrl = "http://localhost:8000";
 
         public ApiService()
         {
