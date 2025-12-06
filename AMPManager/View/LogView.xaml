@@ -12,7 +12,10 @@
         <Border Grid.Row="0" Style="{StaticResource PanelStyle}" Margin="0,0,0,15" Padding="15">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock Text="날짜" VerticalAlignment="Center" Foreground="{StaticResource SecondaryText}" Margin="0,0,10,0"/>
-                <TextBox Text="{Binding SearchDate}" Width="120" Height="30" VerticalContentAlignment="Center" Padding="5" Background="#404050" Foreground="White" BorderThickness="0"/>
+
+                <DatePicker SelectedDate="{Binding SearchDate}" 
+                            Width="120" Height="30" 
+                            VerticalContentAlignment="Center"/>
 
                 <CheckBox Content="정상" IsChecked="{Binding IsCheckedNormal}" Foreground="{StaticResource PrimaryText}" VerticalAlignment="Center" Margin="30,0,10,0" Style="{StaticResource {x:Type CheckBox}}"/>
                 <CheckBox Content="불량" IsChecked="{Binding IsCheckedDefect}" Foreground="#FF5252" VerticalAlignment="Center" Margin="10,0,0,0"/>

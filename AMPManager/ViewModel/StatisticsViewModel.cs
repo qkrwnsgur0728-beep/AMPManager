@@ -1,19 +1,22 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq; // ★ Linq 추가 (Axes 검색용)
 using System.Windows.Input;
 using AMPManager.Core;
 using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
+using OxyPlot.Legends;
 
 namespace AMPManager.ViewModel
 {
     public class StatisticsViewModel : BaseViewModel
     {
-        private DatabaseManager _dbManager = new DatabaseManager();
+        private ApiService _apiService = new ApiService();
 
-        // 1. 기간 선택
-        private DateTime _startDate = DateTime.Now.AddDays(-7);
+        // 날짜 선택 (초기값: 최근 7일)
         private DateTime _endDate = DateTime.Now;
+        private DateTime _startDate = DateTime.Now.AddDays(-6);
 
         public DateTime StartDate
         {
@@ -29,7 +32,7 @@ namespace AMPManager.ViewModel
 
         public ICommand SearchCommand { get; }
 
-        // 2. 그래프 모델
+        // 그래프 모델
         private PlotModel _defectRateModel;
         public PlotModel DefectRateModel
         {
@@ -37,21 +40,20 @@ namespace AMPManager.ViewModel
             set => SetProperty(ref _defectRateModel, value);
         }
 
-        // 3. 통계 수치
-        private string _avgWidth = "-";
-        private string _avgLength = "-";
-        private string _avgContour = "-";
-        private string _avgCenter = "-";
+        // 하단 카드 (불량 개수 표시용)
+        private string _cntShape = "0";
+        private string _cntCenter = "0";
+        private string _cntRust = "0";
+        private string _cntTotal = "0";
 
-        public string AvgWidth { get => _avgWidth; set => SetProperty(ref _avgWidth, value); }
-        public string AvgLength { get => _avgLength; set => SetProperty(ref _avgLength, value); }
-        public string AvgContour { get => _avgContour; set => SetProperty(ref _avgContour, value); }
-        public string AvgCenter { get => _avgCenter; set => SetProperty(ref _avgCenter, value); }
+        public string CntShape { get => _cntShape; set => SetProperty(ref _cntShape, value); }
+        public string CntCenter { get => _cntCenter; set => SetProperty(ref _cntCenter, value); }
+        public string CntRust { get => _cntRust; set => SetProperty(ref _cntRust, value); }
+        public string CntTotal { get => _cntTotal; set => SetProperty(ref _cntTotal, value); }
 
         public StatisticsViewModel()
         {
             SearchCommand = new RelayCommand(o => LoadChartData());
-
             InitializeChart();
             LoadChartData();
         }
@@ -66,11 +68,29 @@ namespace AMPManager.ViewModel
             model.PlotAreaBorderColor = OxyColors.Transparent;
             model.TextColor = textColor;
 
+            // 범례 설정
+            model.Legends.Add(new Legend
+            {
+                LegendPosition = LegendPosition.TopRight,
+                LegendTextColor = textColor,
+                LegendBackground = OxyColors.Transparent,
+                LegendBorder = OxyColors.Transparent
+            });
+
             // X축 (날짜)
             model.Axes.Add(new DateTimeAxis
             {
                 Position = AxisPosition.Bottom,
-                StringFormat = "MM/dd",
+                StringFormat = "MM-dd",
+
+                // ★★★ [수정 1] 시작/종료 범위 강제 고정 (주석 해제됨) ★★★
+                Minimum = DateTimeAxis.ToDouble(StartDate),
+                Maximum = DateTimeAxis.ToDouble(EndDate),
+
+                // 하루(1일) 간격 고정
+                IntervalType = DateTimeIntervalType.Days,
+                MajorStep = 1.0,
+
                 AxislineColor = gridColor,
                 TicklineColor = gridColor,
                 TextColor = textColor,
@@ -78,18 +98,12 @@ namespace AMPManager.ViewModel
                 MajorGridlineColor = gridColor
             });
 
-            // [수정된 부분] Y축 (불량률 %) - 절대 범위 설정 추가!
+            // Y축
             model.Axes.Add(new LinearAxis
             {
                 Position = AxisPosition.Left,
-                Title = "불량률(%)",
-                Minimum = 0,    // 시작할 때 보이는 최소값
-                Maximum = 100,  // 시작할 때 보이는 최대값
-
-                // ★ 여기가 핵심입니다 ★
-                AbsoluteMinimum = 0,   // 아무리 축소해도 0 밑으로 안 내려감
-                AbsoluteMaximum = 100, // 아무리 축소해도 100 위로 안 올라감
-
+                Title = "수량(개)",
+                Minimum = 0,
                 MajorGridlineStyle = LineStyle.Dot,
                 MajorGridlineColor = gridColor,
                 AxislineColor = gridColor,
@@ -99,39 +113,68 @@ namespace AMPManager.ViewModel
             DefectRateModel = model;
         }
 
-        private void LoadChartData()
+        private async void LoadChartData()
         {
-            var dailyRates = _dbManager.GetDailyDefectRates(StartDate, EndDate);
-            var averages = _dbManager.GetAverageSpecs();
+            // API 호출
+            var stats = await _apiService.GetStatisticsAsync(StartDate, EndDate);
 
-            AvgWidth = $"{averages.w:F2} mm";
-            AvgLength = $"{averages.l:F2} mm";
-            AvgContour = $"{averages.c:F2}";
-            AvgCenter = $"{averages.cp:F1}";
+            if (stats == null) return;
 
-            if (DefectRateModel != null)
+            // 1. 하단 카드 갱신
+            if (stats.counts != null)
+            {
+                CntShape = $"{stats.counts.shape} 개";
+                CntCenter = $"{stats.counts.center} 개";
+                CntRust = $"{stats.counts.rust} 개";
+                CntTotal = $"{stats.counts.total_ng} 개";
+            }
+
+            // 2. 그래프 갱신
+            if (DefectRateModel != null && stats.daily_data != null)
             {
                 DefectRateModel.Series.Clear();
 
-                var lineSeries = new LineSeries
+                // ★★★ [수정 2] 그래프 X축 범위를 선택한 날짜에 맞춰 업데이트 ★★★
+                // (이 코드가 없으면 날짜를 바꿔도 그래프 범위가 그대로입니다)
+                var dateAxis = DefectRateModel.Axes.FirstOrDefault(x => x.Position == AxisPosition.Bottom) as DateTimeAxis;
+                if (dateAxis != null)
                 {
+                    dateAxis.Minimum = DateTimeAxis.ToDouble(StartDate);
+                    dateAxis.Maximum = DateTimeAxis.ToDouble(EndDate);
+                }
+
+                // (1) 전체 검사 수량 (파란선)
+                var totalSeries = new LineSeries
+                {
+                    Title = "전체 검사",
                     Color = OxyColor.Parse("#00C1D4"),
                     MarkerType = MarkerType.Circle,
-                    MarkerSize = 4,
-                    MarkerStroke = OxyColor.Parse("#00C1D4"),
-                    MarkerFill = OxyColor.Parse("#2F2F3D"),
-                    StrokeThickness = 3
+                    MarkerSize = 3,
+                    StrokeThickness = 2
                 };
 
-                foreach (var item in dailyRates)
+                // (2) 불량 수량 (빨간선)
+                var defectSeries = new LineSeries
                 {
-                    if (DateTime.TryParse(item.Key, out DateTime dt))
+                    Title = "불량 발생",
+                    Color = OxyColor.Parse("#FF5252"),
+                    MarkerType = MarkerType.Circle,
+                    MarkerSize = 3,
+                    StrokeThickness = 2
+                };
+
+                foreach (var item in stats.daily_data)
+                {
+                    if (DateTime.TryParse(item.date, out DateTime dt))
                     {
-                        lineSeries.Points.Add(new DataPoint(DateTimeAxis.ToDouble(dt), item.Value));
+                        double xValue = DateTimeAxis.ToDouble(dt);
+                        totalSeries.Points.Add(new DataPoint(xValue, item.total));
+                        defectSeries.Points.Add(new DataPoint(xValue, item.defect));
                     }
                 }
 
-                DefectRateModel.Series.Add(lineSeries);
+                DefectRateModel.Series.Add(totalSeries);
+                DefectRateModel.Series.Add(defectSeries);
                 DefectRateModel.InvalidatePlot(true);
             }
         }

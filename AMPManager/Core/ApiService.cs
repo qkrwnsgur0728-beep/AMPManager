@@ -15,7 +15,7 @@ namespace AMPManager.Core
         private readonly HttpClient _client;
 
         // ★ 서버 주소 (Python 서버 IP와 포트 확인)
-        private const string BaseUrl = "http://127.0.0.1:8000";
+        private const string BaseUrl = "http://localhost:8000";
 
         public ApiService()
         {
@@ -151,10 +151,22 @@ namespace AMPManager.Core
 
     public class ServerStats
     {
-        public Dictionary<string, double> daily_rates { get; set; }
-        public double avg_width { get; set; }
-        public double avg_length { get; set; }
-        public double avg_contour { get; set; }
-        public double avg_center { get; set; }
+        public List<DailyStatItem> daily_data { get; set; }
+        public DefectCountItem counts { get; set; }
+    }
+
+    public class DailyStatItem
+    {
+        public string date { get; set; }
+        public int total { get; set; }
+        public int defect { get; set; }
+    }
+
+    public class DefectCountItem
+    {
+        public int shape { get; set; }    // 외곽선
+        public int center { get; set; }   // 무게중심
+        public int rust { get; set; }     // 녹
+        public int total_ng { get; set; } // 총 불량
     }
 }
