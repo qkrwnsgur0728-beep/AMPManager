@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Headers; // [추가] 헤더 처리를 위해 필요
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -15,8 +15,8 @@ namespace AMPManager.Core
     {
         private readonly HttpClient _client;
 
-        // ★ [중요] 실제 파이썬 서버 IP로 변경하세요 (로컬 테스트 시 localhost 유지)
-        private const string BaseUrl = "http://localhost:8000";
+        // ★ [수정됨] 실제 서버 IP (192.168.0.28)로 변경
+        private const string BaseUrl = "http://192.168.0.28:8000";
 
         public ApiService()
         {

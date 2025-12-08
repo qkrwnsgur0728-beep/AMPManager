@@ -21,10 +21,9 @@ namespace AMPManager.ViewModel
     {
         private DispatcherTimer _timer;
 
-        // [수정] API 서비스 사용
         private ApiService _apiService = new ApiService();
         private DatabaseManager _dbManager = new DatabaseManager();
-        private MqttService _mqttService = new MqttService(); // 데이터 수신용(Listening)으로 유지
+        private MqttService _mqttService = new MqttService();
 
         private WebSocketImageService _wsService1 = new WebSocketImageService();
         private WebSocketImageService _wsService2 = new WebSocketImageService();
@@ -49,16 +48,12 @@ namespace AMPManager.ViewModel
         public int CurrentComplete { get => _currentComplete; set => SetProperty(ref _currentComplete, value); }
         public double DefectRate { get => _defectRate; set => SetProperty(ref _defectRate, value); }
 
-        // [변경 사항] TestCommand 삭제됨
-
         public HomeViewModel()
         {
             InitializeCombinedChart();
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _timer.Tick += Timer_Tick;
-
-            // 로컬 카메라 초기화 코드 삭제 (서버 영상 사용)
 
             // 실시간 판정 결과 수신 (Server -> MQTT -> WPF)
             _mqttService.MessageReceived += OnMqttDataReceived;
@@ -67,8 +62,6 @@ namespace AMPManager.ViewModel
 
             _wsService1.OnImageReceived += HandleImage1;
             _wsService2.OnImageReceived += HandleImage2;
-
-            // [변경 사항] TestCommand 초기화 코드 삭제됨
         }
 
         private void HandleImage1(byte[] data)
@@ -156,7 +149,6 @@ namespace AMPManager.ViewModel
             {
                 try
                 {
-                    // 서버 규격에 맞춰 파싱
                     dynamic data = JsonConvert.DeserializeObject(jsonPayload);
                     if (data == null) return;
 
@@ -186,15 +178,15 @@ namespace AMPManager.ViewModel
             if (!_timer.IsEnabled)
             {
                 // 1. API 호출: /api/start
-                bool success = await _apiService.StartSystemAsync("1"); // DeviceID=1 가정
+                bool success = await _apiService.StartSystemAsync("1");
 
                 if (success)
                 {
                     // 2. CCTV 켜기: /api/CCTV (action=1)
                     await _apiService.ControlCctvAsync("1");
 
-                    // 3. 웹소켓 연결 (View 모드)
-                    string fastApiIp = "192.168.0.7";
+                    // 3. 웹소켓 연결 (View 모드) - ★ [수정됨] IP 변경
+                    string fastApiIp = "192.168.0.28";
                     int fastApiPort = 8000;
                     string url1 = $"ws://{fastApiIp}:{fastApiPort}/api/view/1";
                     string url2 = $"ws://{fastApiIp}:{fastApiPort}/api/view/2";
@@ -219,7 +211,8 @@ namespace AMPManager.ViewModel
 
             if (success)
             {
-                string fastApiIp = "192.168.0.7";
+                // ★ [수정됨] IP 변경
+                string fastApiIp = "192.168.0.28";
                 int fastApiPort = 8000;
                 await _wsService1.ConnectAsync($"ws://{fastApiIp}:{fastApiPort}/api/view/1");
                 await _wsService2.ConnectAsync($"ws://{fastApiIp}:{fastApiPort}/api/view/2");
@@ -252,12 +245,10 @@ namespace AMPManager.ViewModel
 
         private async void Timer_Tick(object? sender, EventArgs e)
         {
-            // 실시간 상태 갱신 (선택사항: /api/status 혹은 계산된 값 사용)
             var status = await _apiService.GetStatusAsync();
             if (status != null)
             {
-                // 서버와 수량 동기화가 필요하다면 여기서 갱신
-                // AllocationCount = status.AllocationCount;
+                // 필요 시 서버 상태 동기화
             }
             UpdateChartData();
         }

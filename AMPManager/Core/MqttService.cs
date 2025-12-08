@@ -11,11 +11,11 @@ namespace AMPManager.Core
         private IMqttClient _mqttClient;
         private MqttFactory _factory;
 
-        // [에러 해결 1] 메시지가 들어오면 ViewModel에게 알려줄 이벤트
+        // 메시지가 들어오면 ViewModel에게 알려줄 이벤트
         public event Action<string> MessageReceived;
 
-        // ★ 브로커 주소 (라즈베리파이 IP나 localhost)
-        private const string BrokerIp = "192.168.0.31";
+        // ★ [수정됨] 실제 서버 IP (192.168.0.28)로 변경
+        private const string BrokerIp = "192.168.0.28";
         private const int BrokerPort = 1883;
 
         // ★ 토픽 정의
@@ -31,7 +31,7 @@ namespace AMPManager.Core
             _mqttClient.ApplicationMessageReceivedAsync += HandleMessageAsync;
         }
 
-        // [에러 해결 2] 연결하기 함수
+        // 연결하기 함수
         public async Task ConnectAsync()
         {
             if (_mqttClient.IsConnected) return;
@@ -55,7 +55,7 @@ namespace AMPManager.Core
             }
         }
 
-        // [에러 해결 3] 명령 보내기 함수 (START / STOP)
+        // 명령 보내기 함수 (START / STOP)
         public async Task SendCommandAsync(string command)
         {
             if (!_mqttClient.IsConnected) return;
@@ -79,7 +79,7 @@ namespace AMPManager.Core
             System.Diagnostics.Debug.WriteLine(">>> [테스트] 신호 '1' 전송함");
         }
 
-        // 4. 메시지 받았을 때 처리 (내부용)
+        // 메시지 받았을 때 처리 (내부용)
         private Task HandleMessageAsync(MqttApplicationMessageReceivedEventArgs e)
         {
             string payload = Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment);
@@ -94,7 +94,7 @@ namespace AMPManager.Core
             return Task.CompletedTask;
         }
 
-        // 5. 연결 끊기
+        // 연결 끊기
         public async Task DisconnectAsync()
         {
             if (_mqttClient.IsConnected)
@@ -103,5 +103,4 @@ namespace AMPManager.Core
             }
         }
     }
-
 }
