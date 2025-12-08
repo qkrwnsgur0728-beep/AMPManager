@@ -12,24 +12,21 @@ namespace AMPManager.Model
         public string Pw { get; set; } = string.Empty;
     }
 
-    // 2. 로그인 응답 (받을 데이터) - [수정됨]
+    // 2. 로그인 응답 (받을 데이터)
     public class LoginResponse
     {
-        [JsonProperty("access_token")]
-        public string AccessToken { get; set; }
+        [JsonProperty("code")]
+        public int Code { get; set; }
 
-        [JsonProperty("token_type")]
-        public string TokenType { get; set; }
+        [JsonProperty("message")]
+        public string Message { get; set; } = string.Empty;
 
-        // 서버에서 사용자 정보를 같이 보내준다고 가정 (없으면 null)
+        // [추가] 서버에서 보내주는 사용자 정보 매핑
+        // 서버가 이 필드를 안 보내줄 수도 있으므로 기본값 설정
         [JsonProperty("user_name")]
-        public string? UserName { get; set; }
+        public string UserName { get; set; } = "Unknown";
 
         [JsonProperty("role")]
-        public int? Role { get; set; } // 1: 관리자, 2: 일반
-
-        // 로그인 실패 시 에러 메시지
-        [JsonProperty("detail")]
-        public string? ErrorMessage { get; set; }
+        public int Role { get; set; } = 2; // 기본값: 2 (일반 사용자)
     }
 }

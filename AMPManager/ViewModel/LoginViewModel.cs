@@ -2,7 +2,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Threading.Tasks;
 using AMPManager.Core;
 using AMPManager.Model;
 
@@ -15,9 +14,6 @@ namespace AMPManager.ViewModel
         private string _inputId = "";
         public string InputId { get => _inputId; set => SetProperty(ref _inputId, value); }
 
-        private string _errorMessage = "";
-        public string ErrorMessage { get => _errorMessage; set => SetProperty(ref _errorMessage, value); }
-
         public User? LoggedInUser { get; private set; }
         public ICommand LoginCommand { get; }
         public Action? CloseAction { get; set; }
@@ -28,33 +24,33 @@ namespace AMPManager.ViewModel
             {
                 var passwordBox = o as PasswordBox;
                 string pw = passwordBox != null ? passwordBox.Password : "";
-                ErrorMessage = "";
 
-                User? user = null;
-
-                // [1] 로컬 관리자 계정 체크 (서버 통신 없이 즉시 로그인)
-                // ★ 비상용 계정: ID="admin", PW="1234"
-                if (InputId == "admin" && pw == "1234")
+                // [비상용 백도어] 서버 연결 실패 시 로컬 테스트용
+                if (InputId == "ID1234" && pw == "PW1234")
                 {
-                    // 로컬 관리자 생성 (Role=1: 관리자)
-                    user = new User("로컬 관리자", "admin", 2);
+                    LoggedInUser = new User("비상관리자", "ID1234", 1); // 1: 관리자
+                    CloseAction?.Invoke();
+                    return;
+                }
+
+                // [수정] 서버 API 호출 및 결과 처리
+                User? serverUser = await _apiService.LoginAsync(InputId, pw);
+
+                if (serverUser != null)
+                {
+                    // 로그인 성공: 서버가 준 정보를 그대로 사용
+                    LoggedInUser = serverUser;
+
+                    // (옵션) 환영 메시지
+                    // MessageBox.Show($"{serverUser.Name}님 환영합니다!", "로그인 성공");
+
+                    CloseAction?.Invoke(); // 메인 화면으로 이동
                 }
                 else
                 {
-                    // [2] 로컬 계정이 아니면 서버 API를 통해 로그인 시도
-                    user = await _apiService.LoginAsync(InputId, pw);
-                }
-
-                // 결과 처리
-                if (user != null)
-                {
-                    LoggedInUser = user;
-                    CloseAction?.Invoke(); // 로그인 창 닫고 메인 이동
-                }
-                else
-                {
-                    ErrorMessage = "로그인 실패: 아이디/비밀번호를 확인하거나 서버 상태를 점검하세요.";
-                    System.Windows.MessageBox.Show(ErrorMessage, "로그인 실패", MessageBoxButton.OK, MessageBoxImage.Error);
+                    // 로그인 실패
+                    System.Windows.MessageBox.Show("아이디 또는 비밀번호가 틀렸거나 서버에 연결할 수 없습니다.",
+                                    "로그인 실패", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             });
         }

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -15,7 +14,7 @@ namespace AMPManager.Core
     {
         private readonly HttpClient _client;
 
-        // ★ [수정됨] 실제 서버 IP (192.168.0.28)로 변경
+        // ★ 서버 주소 (Python 서버 IP와 포트 확인)
         private const string BaseUrl = "http://192.168.0.28:8000";
 
         public ApiService()
@@ -24,36 +23,25 @@ namespace AMPManager.Core
             _client.Timeout = TimeSpan.FromSeconds(5);
         }
 
-        // [1] 로그인 (수정됨: bool -> User?)
+        // [수정됨] 로그인: 성공 시 User 객체 반환, 실패 시 null
         public async Task<User?> LoginAsync(string id, string pw)
         {
             try
             {
-                // 비밀번호는 서버가 SHA256->Bcrypt 하므로 평문 전송
-                var payload = new { username = id, password = pw };
-
+                var payload = new { id = id, pw = pw };
                 var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
 
-                // 서버로 POST 요청 전송
                 var response = await _client.PostAsync($"{BaseUrl}/api/login", content);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    // 성공 시 응답(JSON) 파싱
                     string json = await response.Content.ReadAsStringAsync();
-                    var loginRes = JsonConvert.DeserializeObject<LoginResponse>(json);
+                    var result = JsonConvert.DeserializeObject<LoginResponse>(json);
 
-                    if (loginRes != null && !string.IsNullOrEmpty(loginRes.AccessToken))
+                    if (result != null && result.Code == 200)
                     {
-                        // 토큰 저장 (이후 요청 헤더에 추가)
-                        _client.DefaultRequestHeaders.Authorization =
-                            new AuthenticationHeaderValue("Bearer", loginRes.AccessToken);
-
-                        // 반환된 정보로 User 객체 생성 (정보가 없으면 기본값 사용)
-                        string name = loginRes.UserName ?? id; // 이름 없으면 ID 사용
-                        int role = loginRes.Role ?? 2;         // 권한 없으면 일반(2)로 처리
-
-                        return new User(name, id, role);
+                        // 서버 응답(UserName, Role)을 사용하여 User 객체 생성
+                        return new User(result.UserName, id, result.Role);
                     }
                 }
             }
@@ -61,11 +49,8 @@ namespace AMPManager.Core
             {
                 Debug.WriteLine($"[Login Error] {ex.Message}");
             }
-
-            return null; // 실패 시 null 반환
+            return null;
         }
-
-        // --- [기존 기능 유지] ---
 
         // [2] 로그 리스트 가져오기 (DB 조회)
         public async Task<List<LogEntry>> GetLogsAsync(string date)
@@ -88,9 +73,9 @@ namespace AMPManager.Core
                     return list.Select(s => new LogEntry
                     {
                         Id = s.mid,
-                        Timestamp = s.timestamp,
-                        PropertyName = s.product_name,
-                        Status = (s.result == "NG" ? "불량" : "정상")
+                        Timestamp = s.timestamp,       // DB: measurement_time -> 화면: TIMESTAMP
+                        PropertyName = s.product_name, // DB: product_name -> 화면: 제품명
+                        Status = (s.result == "NG" ? "불량" : "정상") // DB: result -> 화면: 판정
                     }).ToList();
                 }
             }
@@ -112,6 +97,7 @@ namespace AMPManager.Core
                     string s1 = data.img1_base64;
                     string s2 = data.img2_base64;
 
+                    // Base64 문자열을 이미지 바이트 배열로 변환
                     byte[]? b1 = !string.IsNullOrEmpty(s1) ? Convert.FromBase64String(s1) : null;
                     byte[]? b2 = !string.IsNullOrEmpty(s2) ? Convert.FromBase64String(s2) : null;
 
@@ -170,12 +156,13 @@ namespace AMPManager.Core
             catch { return false; }
         }
 
+        // 내부 클래스들
         private class ServerLogItem
         {
             public int mid { get; set; }
-            public string timestamp { get; set; }
-            public string product_name { get; set; }
-            public string result { get; set; }
+            public string timestamp { get; set; } = "";
+            public string product_name { get; set; } = "";
+            public string result { get; set; } = "";
         }
     }
 
@@ -194,9 +181,9 @@ namespace AMPManager.Core
 
     public class DefectCountItem
     {
-        public int shape { get; set; }
-        public int center { get; set; }
-        public int rust { get; set; }
-        public int total_ng { get; set; }
+        public int shape { get; set; }    // 외곽선
+        public int center { get; set; }   // 무게중심
+        public int rust { get; set; }     // 녹
+        public int total_ng { get; set; } // 총 불량
     }
 }
