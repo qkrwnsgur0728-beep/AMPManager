@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Headers; // [추가] 헤더 처리를 위해 필요
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -10,84 +11,71 @@ using System.Linq;
 
 namespace AMPManager.Core
 {
-    // 로그인 응답 모델
-    public class LoginResponse
-    {
-        public bool IsSuccess { get; set; }
-        public string? Message { get; set; }
-        public object? Data { get; set; }
-    }
-
     public class ApiService
     {
         private readonly HttpClient _client;
 
-        // ★ 서버 주소 (환경에 맞게 수정하세요)
-        private const string BaseUrl = "http://192.168.0.28:8000";
-        //private const string BaseUrl = "http://localhost:8000";
+        // ★ [중요] 실제 파이썬 서버 IP로 변경하세요 (로컬 테스트 시 localhost 유지)
+        private const string BaseUrl = "http://localhost:8000";
 
         public ApiService()
         {
             _client = new HttpClient();
-
-            // [변경 전] 5초는 너무 짧아서 타임아웃 발생
-            // _client.Timeout = TimeSpan.FromSeconds(5);
-
-            // [변경 후] 타임아웃을 30초로 늘림 (네트워크 지연 대비)
-            _client.Timeout = TimeSpan.FromSeconds(30);
+            _client.Timeout = TimeSpan.FromSeconds(5);
         }
 
-        // =========================================================
-        // [1] 로그인
-        // =========================================================
-        public async Task<LoginResponse> LoginAsync(string id, string pw)
+        // [1] 로그인 (수정됨: bool -> User?)
+        public async Task<User?> LoginAsync(string id, string pw)
         {
-            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(pw))
-            {
-                return new LoginResponse { IsSuccess = false, Message = "아이디와 비밀번호를 입력해주세요." };
-            }
-
             try
             {
-                var payload = new { id = id, pw = pw };
+                // 비밀번호는 서버가 SHA256->Bcrypt 하므로 평문 전송
+                var payload = new { username = id, password = pw };
+                // 참고: FastAPI OAuth2PasswordRequestForm을 쓴다면 form-data로 보내야 할 수도 있음.
+                // 여기서는 JSON 바디로 받는다고 가정하고 작성했습니다.
+
                 var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
 
+                // 서버로 POST 요청 전송
                 var response = await _client.PostAsync($"{BaseUrl}/api/login", content);
-                var responseJson = await response.Content.ReadAsStringAsync();
-                var data = JsonConvert.DeserializeObject<dynamic>(responseJson);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    return new LoginResponse { IsSuccess = true, Message = "로그인 성공!", Data = data };
+                    // 성공 시 응답(JSON) 파싱
+                    string json = await response.Content.ReadAsStringAsync();
+                    var loginRes = JsonConvert.DeserializeObject<LoginResponse>(json);
+
+                    if (loginRes != null && !string.IsNullOrEmpty(loginRes.AccessToken))
+                    {
+                        // 토큰 저장 (이후 요청 헤더에 추가)
+                        _client.DefaultRequestHeaders.Authorization =
+                            new AuthenticationHeaderValue("Bearer", loginRes.AccessToken);
+
+                        // 반환된 정보로 User 객체 생성 (정보가 없으면 기본값 사용)
+                        string name = loginRes.UserName ?? id; // 이름 없으면 ID 사용
+                        int role = loginRes.Role ?? 2;         // 권한 없으면 일반(2)로 처리
+
+                        return new User(name, id, role);
+                    }
                 }
-                else
-                {
-                    string detailMessage = data?.detail?.ToString() ?? "로그인 실패";
-                    return new LoginResponse { IsSuccess = false, Message = detailMessage, Data = data };
-                }
             }
-            catch (HttpRequestException)
+            catch (Exception ex)
             {
-                return new LoginResponse { IsSuccess = false, Message = "서버 통신 오류 (네트워크 문제 등)" };
+                Debug.WriteLine($"[Login Error] {ex.Message}");
             }
-            catch (Exception)
-            {
-                return new LoginResponse { IsSuccess = false, Message = "알 수 없는 오류 발생" };
-            }
+
+            return null; // 실패 시 null 반환
         }
 
-        // =========================================================
-        // [2] 로그 리스트 조회
-        // =========================================================
+        // --- [기존 기능 유지] ---
+
+        // [2] 로그 리스트 가져오기 (DB 조회)
         public async Task<List<LogEntry>> GetLogsAsync(string date)
         {
             try
             {
                 var payload = new { startDate = date };
                 var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
-
-                // [디버깅 로그] 요청 확인용
-                Debug.WriteLine($"[API 요청] URL: {BaseUrl}/api/logs, Data: {JsonConvert.SerializeObject(payload)}");
 
                 var response = await _client.PostAsync($"{BaseUrl}/api/logs", content);
 
@@ -98,27 +86,21 @@ namespace AMPManager.Core
 
                     if (list == null) return new List<LogEntry>();
 
+                    // 서버 데이터(timestamp, result)를 WPF 화면용(LogEntry)으로 변환
                     return list.Select(s => new LogEntry
                     {
-                        MeasureId = s.mid,             // ID
-                        Timestamp = s.timestamp,       // 시간
-                        PropertyName = s.product_name, // 제품명
-                        Status = (s.result == "NG" ? "불량" : "정상"), // 판정
-                        DefectReason = (s.result == "NG" ? "불량 감지" : "-") // 사유(임시)
+                        Id = s.mid,
+                        Timestamp = s.timestamp,
+                        PropertyName = s.product_name,
+                        Status = (s.result == "NG" ? "불량" : "정상")
                     }).ToList();
-                }
-                else
-                {
-                    Debug.WriteLine($"[API 오류] 상태코드: {response.StatusCode}");
                 }
             }
             catch (Exception ex) { Debug.WriteLine($"[Logs Error] {ex.Message}"); }
             return new List<LogEntry>();
         }
 
-        // =========================================================
-        // [3] 이미지 조회
-        // =========================================================
+        // [3] 사진 데이터 가져오기 (상세 보기용)
         public async Task<(byte[]?, byte[]?)> GetLogImagesAsync(int mid)
         {
             try
@@ -142,9 +124,7 @@ namespace AMPManager.Core
             return (null, null);
         }
 
-        // =========================================================
         // [4] 측정 데이터 업로드
-        // =========================================================
         public async Task UploadMeasurementAsync(int pid, string result, byte[]? img1, byte[]? img2)
         {
             try
@@ -162,31 +142,24 @@ namespace AMPManager.Core
             catch { }
         }
 
-        // =========================================================
         // [5] 통계 데이터 조회
-        // =========================================================
         public async Task<ServerStats?> GetStatisticsAsync(DateTime start, DateTime end)
         {
             try
             {
                 var payload = new { startDate = start.ToString("yyyy-MM-dd"), endDate = end.ToString("yyyy-MM-dd") };
                 var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
-
                 var response = await _client.PostAsync($"{BaseUrl}/api/statistics", content);
-
                 if (response.IsSuccessStatusCode)
                 {
-                    string json = await response.Content.ReadAsStringAsync();
-                    return JsonConvert.DeserializeObject<ServerStats>(json);
+                    return JsonConvert.DeserializeObject<ServerStats>(await response.Content.ReadAsStringAsync());
                 }
             }
-            catch (Exception ex) { Debug.WriteLine($"[Stats Error] {ex.Message}"); }
+            catch { }
             return null;
         }
 
-        // =========================================================
         // [6] 시스템 제어
-        // =========================================================
         public async Task<ServerData?> GetStatusAsync() { return null; }
         public async Task<bool> StartSystemAsync(string id = "1") => await PostCmd("/api/start", id);
         public async Task<bool> RestartSystemAsync(string id = "1") => await PostCmd("/api/restart", id);
@@ -199,7 +172,6 @@ namespace AMPManager.Core
             catch { return false; }
         }
 
-        // 내부 클래스 (JSON 파싱용)
         private class ServerLogItem
         {
             public int mid { get; set; }
@@ -208,9 +180,7 @@ namespace AMPManager.Core
             public string result { get; set; }
         }
     }
-    //커밋 확인용
 
-    // 통계 모델
     public class ServerStats
     {
         public List<DailyStatItem> daily_data { get; set; }

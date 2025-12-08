@@ -27,6 +27,8 @@ namespace AMPManager.ViewModel
         // --- 접속자 정보 ---
         public User CurrentUser { get; }
         public string UserRoleDisplay => CurrentUser.IsAdmin ? "👤 관리자 (Admin)" : "👤 일반 사원 (User)";
+
+        // 관리자에게만 보이는 버튼 (통계, 설정 등)
         public Visibility StatTabVisibility => CurrentUser.IsAdmin ? Visibility.Visible : Visibility.Collapsed;
 
         // --- 커맨드 ---
@@ -45,7 +47,7 @@ namespace AMPManager.ViewModel
         {
             CurrentUser = user;
 
-            // 1. 타이머 초기화 (1초마다 실행)
+            // 1. 타이머 초기화
             _opTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _opTimer.Tick += (s, e) =>
             {
@@ -53,16 +55,18 @@ namespace AMPManager.ViewModel
                 OperationTimeDisplay = _opDuration.ToString(@"hh\:mm\:ss");
             };
 
-            // 2. 뷰모델 생성
+            // 2. 뷰모델 생성 (SettingsViewModel 포함)
             var homeVM = new HomeViewModel();
             var logVM = new LogViewModel();
             var statVM = new StatisticsViewModel();
+            var settingsVM = new SettingsViewModel(); // 설정 화면 객체 생성
 
             _viewModels = new Dictionary<string, BaseViewModel>
             {
                 { "Main", homeVM },
                 { "Log", logVM },
-                { "Statistics", statVM }
+                { "Statistics", statVM },
+                { "Settings", settingsVM } // 딕셔너리에 등록 (이동 가능하게)
             };
 
             // 3. 네비게이션
@@ -71,44 +75,37 @@ namespace AMPManager.ViewModel
                 if (o is string p && _viewModels.ContainsKey(p)) CurrentViewModel = _viewModels[p];
             });
 
-            // 4. [시스템 시작] 
+            // 4. 시스템 제어 커맨드들
             StartCommand = new RelayCommand(o =>
             {
                 if (_viewModels["Main"] is HomeViewModel home)
                 {
                     home.StartSimulation();
                     CurrentViewModel = home;
-
-                    // 타이머 시작 (멈춰있을 때만)
                     if (!_opTimer.IsEnabled) _opTimer.Start();
                 }
             });
 
-            // 5. [재가동] (수정됨: 타이머 초기화 로직 삭제 -> 이어서 가동)
             RestartCommand = new RelayCommand(o =>
             {
                 if (_viewModels["Main"] is HomeViewModel home)
                 {
                     home.RestartSimulation();
-
-                    // [수정] 시간을 0으로 만드는 코드를 지웠습니다. 
-                    // 멈춘 시간부터 이어서 다시 시작합니다.
                     if (!_opTimer.IsEnabled) _opTimer.Start();
                 }
             });
 
-            // 6. [정지] 
             StopCommand = new RelayCommand(o =>
             {
                 if (_viewModels["Main"] is HomeViewModel home)
                 {
                     home.StopSimulation();
-
-                    // 타이머 멈춤
                     if (_opTimer.IsEnabled) _opTimer.Stop();
                 }
             });
 
+            // ★ [수정] 초기 화면 설정
+            // 관리자 여부와 상관없이 무조건 메인 화면으로 시작
             CurrentViewModel = _viewModels["Main"];
         }
     }

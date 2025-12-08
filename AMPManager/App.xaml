@@ -6,7 +6,6 @@
              ShutdownMode="OnExplicitShutdown">
 
     <Application.Resources>
-
         <DataTemplate DataType="{x:Type vm:HomeViewModel}">
             <v:HomeView/>
         </DataTemplate>
@@ -17,6 +16,10 @@
 
         <DataTemplate DataType="{x:Type vm:StatisticsViewModel}">
             <v:StatisticsView/>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <v:SettingsView/>
         </DataTemplate>
 
         <SolidColorBrush x:Key="AppBackground" Color="#1E1E2D"/>
@@ -45,37 +48,6 @@
             <Setter Property="Margin" Value="15,15,15,10"/>
         </Style>
 
-        <Style x:Key="ModernListBox" TargetType="ListBox">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{StaticResource SecondaryText}"/>
-        </Style>
-
-        <Style x:Key="ModernListBoxItem" TargetType="ListBoxItem">
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="Margin" Value="5,2"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="Bd" Background="Transparent" CornerRadius="5" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#3A3A4A"/>
-                                <Setter Property="Foreground" Value="{StaticResource PrimaryText}"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentColor}"/>
-                                <Setter Property="Foreground" Value="White"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <Style x:Key="NavBtnStyle" TargetType="Button">
             <Setter Property="Height" Value="60"/>
             <Setter Property="Background" Value="Transparent"/>
@@ -99,6 +71,5 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-
     </Application.Resources>
 </Application>

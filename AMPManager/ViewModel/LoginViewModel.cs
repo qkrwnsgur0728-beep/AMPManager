@@ -1,82 +1,61 @@
 ﻿using System;
-using System.Linq; // Enumerable.OfType
+using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
-// [중요] System.Windows.Forms와 충돌 방지를 위해 using System.Windows 생략
-
+using System.Threading.Tasks;
 using AMPManager.Core;
 using AMPManager.Model;
-using AMPManager.View;
 
 namespace AMPManager.ViewModel
 {
     public class LoginViewModel : ObservableObject
     {
-        private DatabaseManager _dbManager = new DatabaseManager();
+        private ApiService _apiService = new ApiService();
 
         private string _inputId = "";
         public string InputId { get => _inputId; set => SetProperty(ref _inputId, value); }
 
-        public User? LoggedInUser { get; private set; }
+        private string _errorMessage = "";
+        public string ErrorMessage { get => _errorMessage; set => SetProperty(ref _errorMessage, value); }
 
+        public User? LoggedInUser { get; private set; }
         public ICommand LoginCommand { get; }
-        public ICommand OpenSignUpCommand { get; }
         public Action? CloseAction { get; set; }
 
         public LoginViewModel()
         {
-            LoginCommand = new RelayCommand(o =>
+            LoginCommand = new RelayCommand(async o =>
             {
-                // [중요] PasswordBox 명시
-                var passwordBox = o as System.Windows.Controls.PasswordBox;
+                var passwordBox = o as PasswordBox;
                 string pw = passwordBox != null ? passwordBox.Password : "";
+                ErrorMessage = "";
 
-                if (InputId == "1234" && pw == "1234")
+                User? user = null;
+
+                // [1] 로컬 관리자 계정 체크 (서버 통신 없이 즉시 로그인)
+                // ★ 비상용 계정: ID="admin", PW="1234"
+                if (InputId == "admin" && pw == "1234")
                 {
-                    LoggedInUser = new User("관리자(비상)", "1234", 2);
-                    CloseAction?.Invoke();
-                    return;
+                    // 로컬 관리자 생성 (Role=1: 관리자)
+                    user = new User("로컬 관리자", "admin", 2);
+                }
+                else
+                {
+                    // [2] 로컬 계정이 아니면 서버 API를 통해 로그인 시도
+                    user = await _apiService.LoginAsync(InputId, pw);
                 }
 
-                try
+                // 결과 처리
+                if (user != null)
                 {
-                    User? dbUser = _dbManager.Login(InputId, pw);
-                    if (dbUser != null)
-                    {
-                        LoggedInUser = dbUser;
-                        CloseAction?.Invoke();
-                    }
-                    else
-                    {
-                        // [중요] MessageBox 명시
-                        System.Windows.MessageBox.Show("아이디/비번을 확인하세요.", "로그인 실패");
-                    }
+                    LoggedInUser = user;
+                    CloseAction?.Invoke(); // 로그인 창 닫고 메인 이동
                 }
-                catch (Exception ex)
+                else
                 {
-                    System.Windows.MessageBox.Show($"DB 오류: {ex.Message}");
+                    ErrorMessage = "로그인 실패: 아이디/비밀번호를 확인하거나 서버 상태를 점검하세요.";
+                    System.Windows.MessageBox.Show(ErrorMessage, "로그인 실패", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
-            });
-
-            OpenSignUpCommand = new RelayCommand(o =>
-            {
-                SignUpWindow signUp = new SignUpWindow();
-
-                // [중요] Application 명시 (WinForms 충돌 방지)
-                var app = System.Windows.Application.Current;
-                if (app != null)
-                {
-                    if (app.MainWindow != null)
-                    {
-                        signUp.Owner = app.MainWindow;
-                    }
-                    else
-                    {
-                        // 로그인 창(활성화된 창)을 찾아서 Owner로 지정
-                        var active = app.Windows.OfType<System.Windows.Window>().SingleOrDefault(w => w.IsActive);
-                        if (active != null) signUp.Owner = active;
-                    }
-                }
-                signUp.ShowDialog();
             });
         }
     }

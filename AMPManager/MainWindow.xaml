@@ -6,7 +6,6 @@
         
         Title="AMP Manager" 
         Height="900" Width="1600"
-        
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource AppBackground}">
 
@@ -18,20 +17,14 @@
 
         <Border Grid.Row="0" Background="{StaticResource PanelBackground}">
             <DockPanel LastChildFill="False">
-
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0">
-                    <TextBlock Text="계측 모니터링 시스템" 
-                               FontSize="20" FontWeight="Bold" 
-                               Foreground="{StaticResource AccentColor}"/>
-
+                    <TextBlock Text="계측 모니터링 시스템" FontSize="20" FontWeight="Bold" Foreground="{StaticResource AccentColor}"/>
                     <Border Background="#3A3A4A" CornerRadius="15" Margin="20,0,0,0" Padding="15,5">
-                        <TextBlock Text="{Binding UserRoleDisplay}" 
-                                   Foreground="#E0E0E0" FontSize="14" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding UserRoleDisplay}" Foreground="#E0E0E0" FontSize="14" FontWeight="SemiBold"/>
                     </Border>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="20,0">
-
                     <Button Content="시스템 시작" Command="{Binding StartCommand}" 
                             Width="100" Height="36" Background="{StaticResource AccentColor}" 
                             Foreground="White" BorderThickness="0" FontWeight="Bold" Margin="0,0,10,0">
@@ -71,7 +64,6 @@
                                Foreground="#00C1D4" FontSize="24" FontWeight="Bold" 
                                FontFamily="Consolas, Courier New" VerticalAlignment="Center" Margin="5,0,0,0"/>
                 </StackPanel>
-
             </DockPanel>
         </Border>
 
@@ -121,6 +113,23 @@
                         <Style TargetType="Button" BasedOn="{StaticResource NavBtnStyle}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding CurrentViewModel}" Value="{x:Type vm:StatisticsViewModel}">
+                                    <Setter Property="Foreground" Value="{StaticResource AccentColor}"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Background" Value="#2F2F3D"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource AccentColor}"/>
+                                    <Setter Property="BorderThickness" Value="3,0,0,0"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <Button Content="SETTING" Command="{Binding NavigateCommand}" CommandParameter="Settings"
+                        Visibility="{Binding StatTabVisibility}">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource NavBtnStyle}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentViewModel}" Value="{x:Type vm:SettingsViewModel}">
                                     <Setter Property="Foreground" Value="{StaticResource AccentColor}"/>
                                     <Setter Property="FontWeight" Value="Bold"/>
                                     <Setter Property="Background" Value="#2F2F3D"/>
