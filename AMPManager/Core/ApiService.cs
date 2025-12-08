@@ -208,6 +208,7 @@ namespace AMPManager.Core
             public string result { get; set; }
         }
     }
+    //커밋 확인용
 
     // 통계 모델
     public class ServerStats
