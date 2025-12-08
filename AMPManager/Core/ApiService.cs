@@ -31,8 +31,6 @@ namespace AMPManager.Core
             {
                 // 비밀번호는 서버가 SHA256->Bcrypt 하므로 평문 전송
                 var payload = new { username = id, password = pw };
-                // 참고: FastAPI OAuth2PasswordRequestForm을 쓴다면 form-data로 보내야 할 수도 있음.
-                // 여기서는 JSON 바디로 받는다고 가정하고 작성했습니다.
 
                 var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
 

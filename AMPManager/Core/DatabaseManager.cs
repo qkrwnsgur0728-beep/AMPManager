@@ -157,7 +157,7 @@ namespace AMPManager.Core
                         {
                             if (reader.Read())
                             {
-                                string p1 = reader["cam1_path"]?.ToString();
+                                string p1 = reader["cam1_path"]?.ToString();    
                                 string p2 = reader["cam2_path"]?.ToString();
                                 if (!string.IsNullOrEmpty(p1) && File.Exists(p1)) img1 = File.ReadAllBytes(p1);
                                 if (!string.IsNullOrEmpty(p2) && File.Exists(p2)) img2 = File.ReadAllBytes(p2);

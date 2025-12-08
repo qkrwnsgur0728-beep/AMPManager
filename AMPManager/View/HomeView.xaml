@@ -40,16 +40,6 @@
                         </TextBlock.Style>
                     </TextBlock>
 
-                    <Button Content="TEST(1)" Command="{Binding TestCommand}" 
-                            HorizontalAlignment="Left" VerticalAlignment="Top" 
-                            Width="70" Height="30" Margin="10"
-                            Background="#FF5252" Foreground="White" FontWeight="Bold" BorderThickness="0">
-                        <Button.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="5"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
                 </Grid>
             </Border>
 

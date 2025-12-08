@@ -49,7 +49,7 @@ namespace AMPManager.ViewModel
         public int CurrentComplete { get => _currentComplete; set => SetProperty(ref _currentComplete, value); }
         public double DefectRate { get => _defectRate; set => SetProperty(ref _defectRate, value); }
 
-        public ICommand TestCommand { get; }
+        // [변경 사항] TestCommand 삭제됨
 
         public HomeViewModel()
         {
@@ -68,11 +68,7 @@ namespace AMPManager.ViewModel
             _wsService1.OnImageReceived += HandleImage1;
             _wsService2.OnImageReceived += HandleImage2;
 
-            TestCommand = new RelayCommand(async o =>
-            {
-                // 테스트용
-                await _mqttService.ConnectAsync();
-            });
+            // [변경 사항] TestCommand 초기화 코드 삭제됨
         }
 
         private void HandleImage1(byte[] data)
