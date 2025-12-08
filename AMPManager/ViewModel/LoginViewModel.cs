@@ -25,32 +25,31 @@ namespace AMPManager.ViewModel
                 var passwordBox = o as PasswordBox;
                 string pw = passwordBox != null ? passwordBox.Password : "";
 
-                // [비상용 백도어] 서버 연결 실패 시 로컬 테스트용
+                // [중요] 기존 백도어 기능 유지 (서버 연결 안될 때 비상용)
                 if (InputId == "ID1234" && pw == "PW1234")
                 {
-                    LoggedInUser = new User("비상관리자", "ID1234", 1); // 1: 관리자
+                    LoggedInUser = new User("관리자(Local)", "ID1234", 1); // 1: 관리자
                     CloseAction?.Invoke();
                     return;
                 }
 
-                // [수정] 서버 API 호출 및 결과 처리
+                // [수정] 서버 로그인 시도
                 User? serverUser = await _apiService.LoginAsync(InputId, pw);
 
                 if (serverUser != null)
                 {
-                    // 로그인 성공: 서버가 준 정보를 그대로 사용
+                    // 로그인 성공! (서버 정보를 그대로 사용)
                     LoggedInUser = serverUser;
-
-                    // (옵션) 환영 메시지
-                    // MessageBox.Show($"{serverUser.Name}님 환영합니다!", "로그인 성공");
-
-                    CloseAction?.Invoke(); // 메인 화면으로 이동
+                    CloseAction?.Invoke();
                 }
                 else
                 {
-                    // 로그인 실패
-                    System.Windows.MessageBox.Show("아이디 또는 비밀번호가 틀렸거나 서버에 연결할 수 없습니다.",
-                                    "로그인 실패", MessageBoxButton.OK, MessageBoxImage.Error);
+                    // 로그인 실패 (모호함 방지를 위해 전체 네임스페이스 사용)
+                    System.Windows.MessageBox.Show(
+                        "아이디 또는 비밀번호가 틀렸습니다.\n(서버 상태를 확인해주세요)",
+                        "로그인 실패",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Error);
                 }
             });
         }

@@ -28,7 +28,7 @@ namespace AMPManager.ViewModel
         public User CurrentUser { get; }
         public string UserRoleDisplay => CurrentUser.IsAdmin ? "👤 관리자 (Admin)" : "👤 일반 사원 (User)";
 
-        // 관리자에게만 보이는 버튼 (통계, 설정 등)
+        // 관리자에게만 보이는 버튼
         public Visibility StatTabVisibility => CurrentUser.IsAdmin ? Visibility.Visible : Visibility.Collapsed;
 
         // --- 커맨드 ---
@@ -55,18 +55,19 @@ namespace AMPManager.ViewModel
                 OperationTimeDisplay = _opDuration.ToString(@"hh\:mm\:ss");
             };
 
-            // 2. 뷰모델 생성 (SettingsViewModel 포함)
+            // 2. 뷰모델 생성
             var homeVM = new HomeViewModel();
             var logVM = new LogViewModel();
             var statVM = new StatisticsViewModel();
-            var settingsVM = new SettingsViewModel(); // 설정 화면 객체 생성
+            var settingsVM = new SettingsViewModel(); // 위에서 수정한 클래스 사용
 
+            // 이제 SettingsViewModel이 BaseViewModel 자식이므로 오류 없이 들어갑니다.
             _viewModels = new Dictionary<string, BaseViewModel>
             {
                 { "Main", homeVM },
                 { "Log", logVM },
                 { "Statistics", statVM },
-                { "Settings", settingsVM } // 딕셔너리에 등록 (이동 가능하게)
+                { "Settings", settingsVM }
             };
 
             // 3. 네비게이션
@@ -75,7 +76,7 @@ namespace AMPManager.ViewModel
                 if (o is string p && _viewModels.ContainsKey(p)) CurrentViewModel = _viewModels[p];
             });
 
-            // 4. 시스템 제어 커맨드들
+            // 4. 시스템 제어 커맨드
             StartCommand = new RelayCommand(o =>
             {
                 if (_viewModels["Main"] is HomeViewModel home)
@@ -104,8 +105,7 @@ namespace AMPManager.ViewModel
                 }
             });
 
-            // ★ [수정] 초기 화면 설정
-            // 관리자 여부와 상관없이 무조건 메인 화면으로 시작
+            // 5. 초기 화면 설정
             CurrentViewModel = _viewModels["Main"];
         }
     }

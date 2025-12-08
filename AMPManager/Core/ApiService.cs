@@ -14,7 +14,7 @@ namespace AMPManager.Core
     {
         private readonly HttpClient _client;
 
-        // ★ 서버 주소 (Python 서버 IP와 포트 확인)
+        // ★ 서버 주소 (로컬이 아닌 경우 실제 IP로 변경 필요)
         private const string BaseUrl = "http://192.168.0.28:8000";
 
         public ApiService()
@@ -23,12 +23,12 @@ namespace AMPManager.Core
             _client.Timeout = TimeSpan.FromSeconds(5);
         }
 
-        // [수정됨] 로그인: 성공 시 User 객체 반환, 실패 시 null
+        // [1] 로그인
         public async Task<User?> LoginAsync(string id, string pw)
         {
             try
             {
-                var payload = new { id = id, pw = pw };
+                var payload = new LoginRequest { Id = id, Pw = pw };
                 var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
 
                 var response = await _client.PostAsync($"{BaseUrl}/api/login", content);
@@ -40,7 +40,6 @@ namespace AMPManager.Core
 
                     if (result != null && result.Code == 200)
                     {
-                        // 서버 응답(UserName, Role)을 사용하여 User 객체 생성
                         return new User(result.UserName, id, result.Role);
                     }
                 }
@@ -52,30 +51,65 @@ namespace AMPManager.Core
             return null;
         }
 
-        // [2] 로그 리스트 가져오기 (DB 조회)
+        // [2] [수정됨] 회원가입 (Role 포함 전송)
+        public async Task<bool> SignupAsync(string id, string pw, string name, int role = 2)
+        {
+            try
+            {
+                // 서버 규격: { id, pw, name, role }
+                var payload = new SignupRequest { Id = id, Pw = pw, Name = name, Role = role };
+                var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
+
+                // 서버 전송
+                var response = await _client.PostAsync($"{BaseUrl}/api/signup", content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    string json = await response.Content.ReadAsStringAsync();
+                    var result = JsonConvert.DeserializeObject<LoginResponse>(json);
+
+                    // 서버가 보낸 JSON의 "code"가 200이면 성공
+                    if (result != null && result.Code == 200)
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    // 실패 (401 등) 시 서버 메시지 디버깅
+                    string errorMsg = await response.Content.ReadAsStringAsync();
+                    Debug.WriteLine($"[Signup Failed] {response.StatusCode}: {errorMsg}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Signup Error] {ex.Message}");
+            }
+            return false;
+        }
+
+        // --- [기존 기능 유지] ---
+
         public async Task<List<LogEntry>> GetLogsAsync(string date)
         {
             try
             {
                 var payload = new { startDate = date };
                 var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
-
                 var response = await _client.PostAsync($"{BaseUrl}/api/logs", content);
 
                 if (response.IsSuccessStatusCode)
                 {
                     string json = await response.Content.ReadAsStringAsync();
                     var list = JsonConvert.DeserializeObject<List<ServerLogItem>>(json);
-
                     if (list == null) return new List<LogEntry>();
 
-                    // 서버 데이터(timestamp, result)를 WPF 화면용(LogEntry)으로 변환
                     return list.Select(s => new LogEntry
                     {
                         Id = s.mid,
-                        Timestamp = s.timestamp,       // DB: measurement_time -> 화면: TIMESTAMP
-                        PropertyName = s.product_name, // DB: product_name -> 화면: 제품명
-                        Status = (s.result == "NG" ? "불량" : "정상") // DB: result -> 화면: 판정
+                        Timestamp = s.timestamp,
+                        PropertyName = s.product_name,
+                        Status = (s.result == "NG" ? "불량" : "정상")
                     }).ToList();
                 }
             }
@@ -83,7 +117,6 @@ namespace AMPManager.Core
             return new List<LogEntry>();
         }
 
-        // [3] 사진 데이터 가져오기 (상세 보기용)
         public async Task<(byte[]?, byte[]?)> GetLogImagesAsync(int mid)
         {
             try
@@ -93,14 +126,10 @@ namespace AMPManager.Core
                 {
                     var json = await response.Content.ReadAsStringAsync();
                     dynamic data = JsonConvert.DeserializeObject(json);
-
                     string s1 = data.img1_base64;
                     string s2 = data.img2_base64;
-
-                    // Base64 문자열을 이미지 바이트 배열로 변환
                     byte[]? b1 = !string.IsNullOrEmpty(s1) ? Convert.FromBase64String(s1) : null;
                     byte[]? b2 = !string.IsNullOrEmpty(s2) ? Convert.FromBase64String(s2) : null;
-
                     return (b1, b2);
                 }
             }
@@ -108,7 +137,6 @@ namespace AMPManager.Core
             return (null, null);
         }
 
-        // [4] 측정 데이터 업로드
         public async Task UploadMeasurementAsync(int pid, string result, byte[]? img1, byte[]? img2)
         {
             try
@@ -126,7 +154,6 @@ namespace AMPManager.Core
             catch { }
         }
 
-        // [5] 통계 데이터 조회
         public async Task<ServerStats?> GetStatisticsAsync(DateTime start, DateTime end)
         {
             try
@@ -143,7 +170,6 @@ namespace AMPManager.Core
             return null;
         }
 
-        // [6] 시스템 제어
         public async Task<ServerData?> GetStatusAsync() { return null; }
         public async Task<bool> StartSystemAsync(string id = "1") => await PostCmd("/api/start", id);
         public async Task<bool> RestartSystemAsync(string id = "1") => await PostCmd("/api/restart", id);
@@ -156,7 +182,6 @@ namespace AMPManager.Core
             catch { return false; }
         }
 
-        // 내부 클래스들
         private class ServerLogItem
         {
             public int mid { get; set; }
@@ -168,22 +193,22 @@ namespace AMPManager.Core
 
     public class ServerStats
     {
-        public List<DailyStatItem> daily_data { get; set; }
-        public DefectCountItem counts { get; set; }
+        public List<DailyStatItem> daily_data { get; set; } = new List<DailyStatItem>();
+        public DefectCountItem counts { get; set; } = new DefectCountItem();
     }
 
     public class DailyStatItem
     {
-        public string date { get; set; }
+        public string date { get; set; } = "";
         public int total { get; set; }
         public int defect { get; set; }
     }
 
     public class DefectCountItem
     {
-        public int shape { get; set; }    // 외곽선
-        public int center { get; set; }   // 무게중심
-        public int rust { get; set; }     // 녹
-        public int total_ng { get; set; } // 총 불량
+        public int shape { get; set; }
+        public int center { get; set; }
+        public int rust { get; set; }
+        public int total_ng { get; set; }
     }
 }

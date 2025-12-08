@@ -3,57 +3,35 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="{StaticResource AppBackground}">
 
-    <Grid Margin="40">
-        <StackPanel HorizontalAlignment="Left">
-            <TextBlock Text="관리자 계정 관리" 
-                       Foreground="{StaticResource AccentColor}" 
-                       FontSize="24" FontWeight="Bold" Margin="0,0,0,30"/>
+    <Grid>
+        <Border Width="400" Height="450" Style="{StaticResource PanelStyle}" 
+                Background="#2F2F3D" VerticalAlignment="Center" HorizontalAlignment="Center">
 
-            <Border Style="{StaticResource PanelStyle}" Padding="30" Width="400" HorizontalAlignment="Left">
-                <StackPanel>
-                    <TextBlock Text="새 관리자 등록" Foreground="{StaticResource PrimaryText}" FontSize="18" FontWeight="Bold" Margin="0,0,0,20"/>
+            <StackPanel VerticalAlignment="Center" Margin="40">
+                <TextBlock Text="회원가입" Foreground="{StaticResource AccentColor}" 
+                           FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,30"/>
 
-                    <TextBlock Text="아이디 (ID)" Foreground="{StaticResource SecondaryText}" Margin="0,0,0,5"/>
-                    <TextBox Text="{Binding NewId}" Height="35" VerticalContentAlignment="Center" Padding="5,0"
-                             Background="#3A3A4A" Foreground="White" BorderThickness="0" Margin="0,0,0,15">
-                        <TextBox.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="4"/>
-                            </Style>
-                        </TextBox.Resources>
-                    </TextBox>
+                <TextBlock Text="이름 (Name)" Foreground="{StaticResource PrimaryText}" Margin="0,0,0,5"/>
+                <TextBox Text="{Binding InputName}" Height="35" VerticalContentAlignment="Center" Padding="5,0" Margin="0,0,0,15"/>
 
-                    <TextBlock Text="이름 (Name)" Foreground="{StaticResource SecondaryText}" Margin="0,0,0,5"/>
-                    <TextBox Text="{Binding NewName}" Height="35" VerticalContentAlignment="Center" Padding="5,0"
-                             Background="#3A3A4A" Foreground="White" BorderThickness="0" Margin="0,0,0,15">
-                        <TextBox.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="4"/>
-                            </Style>
-                        </TextBox.Resources>
-                    </TextBox>
+                <TextBlock Text="아이디 (ID)" Foreground="{StaticResource PrimaryText}" Margin="0,0,0,5"/>
+                <TextBox Text="{Binding InputId}" Height="35" VerticalContentAlignment="Center" Padding="5,0" Margin="0,0,0,15"/>
 
-                    <TextBlock Text="비밀번호 (Password)" Foreground="{StaticResource SecondaryText}" Margin="0,0,0,5"/>
-                    <PasswordBox x:Name="NewPwBox" Height="35" VerticalContentAlignment="Center" Padding="5,0"
-                                 Background="#3A3A4A" Foreground="White" BorderThickness="0" Margin="0,0,0,25">
-                        <PasswordBox.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="4"/>
-                            </Style>
-                        </PasswordBox.Resources>
-                    </PasswordBox>
+                <TextBlock Text="비밀번호 (PW)" Foreground="{StaticResource PrimaryText}" Margin="0,0,0,5"/>
+                <PasswordBox x:Name="txtPw" Height="35" VerticalContentAlignment="Center" Padding="5,0" Margin="0,0,0,30"/>
 
-                    <Button Content="계정 생성" Command="{Binding CreateAdminCommand}" CommandParameter="{Binding ElementName=NewPwBox}"
-                            Height="40" Background="{StaticResource AccentColor}" Foreground="White" FontWeight="Bold" BorderThickness="0">
-                        <Button.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="4"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
-
-                </StackPanel>
-            </Border>
-        </StackPanel>
+                <Button Content="가입하기" 
+                        Command="{Binding SignupCommand}" 
+                        CommandParameter="{Binding ElementName=txtPw}"
+                        Height="45" Background="{StaticResource AccentColor}" 
+                        Foreground="White" FontWeight="Bold" FontSize="16" BorderThickness="0">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="4"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+        </Border>
     </Grid>
 </UserControl>
