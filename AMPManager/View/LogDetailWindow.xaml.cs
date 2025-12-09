@@ -6,15 +6,15 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Media.Imaging; // 이미지 처리를 위해 추가
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
-using System.IO; // MemoryStream을 위해 추가
+using System.IO;
 using Newtonsoft.Json.Linq;
 using LiveCharts;
 using LiveCharts.Wpf;
 using LiveCharts.Defaults;
 
-// 모호함 방지 (LiveCharts와 System.Windows.Media 충돌 방지)
+// 모호함 방지
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 
@@ -22,7 +22,6 @@ namespace AMPManager.View
 {
     public partial class LogDetailWindow : Window
     {
-        // ★ DB 매니저 대신 API 서비스를 사용합니다.
         private ApiService _apiService = new ApiService();
         private LogEntry _currentLog;
 
@@ -31,11 +30,12 @@ namespace AMPManager.View
             InitializeComponent();
             _currentLog = summaryLog;
 
-            // 1. 요약 정보로 먼저 화면 초기화
             SetStatusColor(_currentLog);
-            this.DataContext = _currentLog;
 
-            // 2. 창이 로드되면 서버에서 상세 데이터와 이미지를 가져옵니다 (비동기)
+            // 그래프 초기화 (수정된 디자인 적용)
+            InitializeGraphs(_currentLog);
+
+            this.DataContext = _currentLog;
             this.Loaded += LogDetailWindow_Loaded;
         }
 
@@ -43,30 +43,21 @@ namespace AMPManager.View
         {
             try
             {
-                // [A] 상세 데이터 가져오기 (/api/logsdetail?mid=...)
                 var fullLog = await _apiService.GetLogDetailAsync(_currentLog.Id);
-
                 if (fullLog != null)
                 {
-                    // 받아온 데이터로 현재 로그 객체 업데이트
                     _currentLog.MeasuredContour = fullLog.MeasuredContour;
                     _currentLog.MeasuredCenter = fullLog.MeasuredCenter;
                     _currentLog.TemplateData = fullLog.TemplateData;
                     _currentLog.HoleOffset = fullLog.HoleOffset;
                     _currentLog.AreaSize = fullLog.AreaSize;
                     _currentLog.DefectReason = fullLog.DefectReason;
-                    // 필요한 경우 공차 정보 등도 업데이트
-                    // _currentLog.TolShape = fullLog.TolShape; 
                 }
 
-                // [B] 이미지 가져오기 (/api/logs/{mid}/images)
-                // Base64 문자열을 받아서 이미지로 변환
                 var (imgBytes1, imgBytes2) = await _apiService.GetLogImagesAsync(_currentLog.Id);
-
                 if (imgBytes1 != null) _currentLog.Img1 = ByteToImage(imgBytes1);
                 if (imgBytes2 != null) _currentLog.Img2 = ByteToImage(imgBytes2);
 
-                // [C] 데이터 갱신 후 상태 색상 재설정 및 그래프 그리기
                 SetStatusColor(_currentLog);
                 InitializeGraphs(_currentLog);
             }
@@ -76,7 +67,6 @@ namespace AMPManager.View
             }
         }
 
-        // Base64 바이트 배열을 BitmapImage로 변환하는 함수
         private ImageSource ByteToImage(byte[] bytes)
         {
             if (bytes == null || bytes.Length == 0) return null;
@@ -92,7 +82,7 @@ namespace AMPManager.View
                     image.StreamSource = mem;
                     image.EndInit();
                 }
-                image.Freeze(); // UI 스레드 접근 허용
+                image.Freeze();
                 return image;
             }
             catch { return null; }
@@ -100,7 +90,6 @@ namespace AMPManager.View
 
         private void SetStatusColor(LogEntry log)
         {
-            // 정상(OK, Pass)이면 초록색, 아니면 빨간색
             bool isPass = (log.Status == "OK" || log.Status == "정상" || (log.Status != null && log.Status.Contains("Pass")));
             log.StatusColor = isPass ? Brushes.LightGreen : Brushes.Red;
         }
@@ -113,11 +102,7 @@ namespace AMPManager.View
             double holeCx = 0, holeCy = 0;
             bool holeFound = false;
 
-            // -------------------------------------------------------
             // [A] 데이터 파싱
-            // -------------------------------------------------------
-
-            // 1. 측정 형상 (Measured Contour) -> 파란색 실선용
             if (!string.IsNullOrWhiteSpace(log.MeasuredContour))
             {
                 try
@@ -130,8 +115,6 @@ namespace AMPManager.View
                     {
                         for (int i = 0; i < xArr.Count; i++)
                             measuredPoints.Add(new ObservablePoint(xArr[i], yArr[i]));
-
-                        // 도형 닫기
                         if (measuredPoints.Count > 0)
                             measuredPoints.Add(new ObservablePoint(measuredPoints[0].X, measuredPoints[0].Y));
                     }
@@ -139,7 +122,6 @@ namespace AMPManager.View
                 catch { }
             }
 
-            // 2. 구멍 중심 (Measured Center)
             if (!string.IsNullOrWhiteSpace(log.MeasuredCenter))
             {
                 try
@@ -155,7 +137,6 @@ namespace AMPManager.View
                 catch { }
             }
 
-            // 3. 기준 형상 (Template Data) -> 초록색 공차 영역용
             if (!string.IsNullOrWhiteSpace(log.TemplateData))
             {
                 try
@@ -172,7 +153,7 @@ namespace AMPManager.View
                 catch { }
             }
 
-            // ★ 중요: 기준 데이터가 없으면 '기본 육각형'을 생성하여 배경으로 깝니다.
+            // 기본 육각형 설정 (데이터 없을 시)
             if (idealPoints.Count == 0)
             {
                 idealPoints.AddRange(new[] {
@@ -180,17 +161,15 @@ namespace AMPManager.View
                     new ObservablePoint(0, -63), new ObservablePoint(-55, -33), new ObservablePoint(-55, 33)
                 });
             }
-            // 기준 도형 닫기
             if (idealPoints.Count > 0 && (idealPoints[0].X != idealPoints.Last().X))
                 idealPoints.Add(new ObservablePoint(idealPoints[0].X, idealPoints[0].Y));
 
 
             // -------------------------------------------------------
-            // [B] 그래프 1: 형상 오버레이 (Shape)
+            // [B] 그래프 1: 형상 분석 (Shape) - 각진 육각형(LineSmoothness=0) 적용
             // -------------------------------------------------------
             log.ShapeVisuals = new VisualElementsCollection();
 
-            // P0 ~ P5 라벨 (기준 도형 위치에 표시)
             for (int i = 0; i < idealPoints.Count && i < 6; i++)
             {
                 var point = idealPoints[i];
@@ -207,7 +186,6 @@ namespace AMPManager.View
                     }
                 });
             }
-            // 중앙 점
             log.ShapeVisuals.Add(new VisualElement
             {
                 X = 0,
@@ -217,17 +195,18 @@ namespace AMPManager.View
 
             log.ShapeSeriesCollection = new SeriesCollection
             {
-                // 1. 기준 영역 (초록색 띠 = 공차 범위) -> 이것이 '판별 기준'이 됩니다.
+                // 1. Tolerance (배경): 각진 육각형 + 반투명 초록색 띠
                 new LineSeries
                 {
                     Title = "Tolerance",
                     Values = idealPoints,
                     PointGeometry = null,
                     Stroke = new SolidColorBrush(Color.FromArgb(80, 0, 255, 0)),
-                    StrokeThickness = log.TolShape > 0 ? log.TolShape * 2 : 10, // 공차값 없으면 기본 두께 10
-                    Fill = Brushes.Transparent
+                    StrokeThickness = log.TolShape > 0 ? log.TolShape * 2 : 10,
+                    Fill = Brushes.Transparent,
+                    LineSmoothness = 0 // ★ 각지게 그리기
                 },
-                // 2. 기준선 (회색 점선 = 이상적인 모양)
+                // 2. Ideal (기준선): 각진 점선
                 new LineSeries
                 {
                     Title = "Ideal",
@@ -236,9 +215,10 @@ namespace AMPManager.View
                     PointGeometrySize = 5,
                     Stroke = Brushes.Gray,
                     StrokeDashArray = new DoubleCollection{ 2 },
-                    Fill = Brushes.Transparent
+                    Fill = Brushes.Transparent,
+                    LineSmoothness = 0 // ★ 각지게 그리기
                 },
-                // 3. 실제 측정값 (파란 실선) -> 기준 위에 덮어 그려짐
+                // 3. Measured (실측): 파란색 실선 + 각지게
                 new LineSeries
                 {
                     Title = "Measured",
@@ -246,13 +226,14 @@ namespace AMPManager.View
                     PointGeometry = null,
                     Stroke = Brushes.DodgerBlue,
                     StrokeThickness = 2,
-                    Fill = new SolidColorBrush(Color.FromArgb(30, 30, 144, 255))
+                    Fill = new SolidColorBrush(Color.FromArgb(30, 30, 144, 255)),
+                    LineSmoothness = 0 // ★ 각지게 그리기 (측정 데이터도 포인트별 직선 연결)
                 }
             };
 
 
             // -------------------------------------------------------
-            // [C] 그래프 2: 편차 (Deviation)
+            // [C] 그래프 2: 편차 프로파일 (Deviation)
             // -------------------------------------------------------
             var deviations = new ChartValues<double>();
             var labels = new List<string>();
@@ -262,7 +243,7 @@ namespace AMPManager.View
                 int count = Math.Min(measuredPoints.Count, 60);
                 for (int i = 0; i < count; i++)
                 {
-                    deviations.Add(measuredPoints[i].Y % 5); // 임시 시각화 데이터
+                    deviations.Add(measuredPoints[i].Y % 5);
                     labels.Add(i.ToString());
                 }
             }
@@ -280,21 +261,40 @@ namespace AMPManager.View
                     Fill = new SolidColorBrush(Color.FromArgb(50, 30, 144, 255))
                 }
             };
-            // 편차 배경색 (정상/경고/불량)
+
+            // 편차 배경색 (세이프 존 색상을 Tolerance와 통일)
             log.DeviationSections = new SectionsCollection
             {
-                new AxisSection { Value = 0, SectionWidth = log.LimitWarn, Fill = new SolidColorBrush(Color.FromArgb(40, 0, 255, 0)) },
-                new AxisSection { Value = log.LimitWarn, SectionWidth = (log.LimitFail - log.LimitWarn), Fill = new SolidColorBrush(Color.FromArgb(40, 255, 255, 0)) },
-                new AxisSection { Value = log.LimitFail, SectionWidth = 10, Fill = new SolidColorBrush(Color.FromArgb(40, 255, 0, 0)) }
+                // Safe Zone: 반투명 초록색 (Shape 그래프와 통일감)
+                new AxisSection
+                {
+                    Value = 0,
+                    SectionWidth = log.LimitWarn,
+                    Fill = new SolidColorBrush(Color.FromArgb(60, 0, 255, 0)) // ★ 수정됨
+                },
+                // Warn Zone: Yellow
+                new AxisSection
+                {
+                    Value = log.LimitWarn,
+                    SectionWidth = (log.LimitFail - log.LimitWarn),
+                    Fill = new SolidColorBrush(Color.FromArgb(40, 255, 255, 0))
+                },
+                // Fail Zone: Red
+                new AxisSection
+                {
+                    Value = log.LimitFail,
+                    SectionWidth = 10,
+                    Fill = new SolidColorBrush(Color.FromArgb(40, 255, 0, 0))
+                }
             };
 
 
             // -------------------------------------------------------
-            // [D] 그래프 3: 동심도 (Concentricity)
+            // [D] 그래프 3: 동심도 (Concentricity) - 빨간색 적용
             // -------------------------------------------------------
             log.ConcentricitySeriesCollection = new SeriesCollection
             {
-                // 중심 십자선
+                // 1. 중심 십자선
                 new ScatterSeries
                 {
                     Title = "Body Center",
@@ -302,41 +302,49 @@ namespace AMPManager.View
                     PointGeometry = DefaultGeometries.Cross,
                     MinPointShapeDiameter = 15,
                     Stroke = Brushes.White,
-                    Fill = Brushes.Transparent
+                    Fill = Brushes.Transparent,
+                    StrokeThickness = 2
                 },
-                // 허용 범위 (초록색 점선 원) -> 기준
+                // 2. Safe Zone (초록색 점선 원)
                 new LineSeries
                 {
                     Title = "Safe Zone",
                     Values = GetCircle(log.TolHole > 0 ? log.TolHole : 5.0),
                     PointGeometry = null,
-                    Stroke = Brushes.Green,
-                    StrokeDashArray = new DoubleCollection{ 2 },
-                    Fill = new SolidColorBrush(Color.FromArgb(30, 0, 255, 0))
+                    Stroke = Brushes.LimeGreen,
+                    StrokeDashArray = new DoubleCollection{ 4, 2 },
+                    Fill = new SolidColorBrush(Color.FromArgb(30, 50, 205, 50)),
+                    StrokeThickness = 2
                 }
             };
 
             if (holeFound)
             {
-                double dist = Math.Sqrt(holeCx * holeCx + holeCy * holeCy);
-                // 허용 범위를 넘으면 빨간색, 안이면 파란색
-                var hColor = (log.TolHole > 0 && dist > log.TolHole) ? Brushes.Red : Brushes.DodgerBlue;
-
+                // 3. Hole Center (항상 빨간색 점)
                 log.ConcentricitySeriesCollection.Add(new ScatterSeries
                 {
                     Title = "Hole Center",
                     Values = new ChartValues<ObservablePoint> { new ObservablePoint(holeCx, holeCy) },
                     PointGeometry = DefaultGeometries.Circle,
-                    MinPointShapeDiameter = 10,
-                    Fill = hColor
+                    MinPointShapeDiameter = 12,
+                    Fill = Brushes.Red,   // ★ 항상 빨간색
+                    Stroke = Brushes.White,
+                    StrokeThickness = 1
                 });
 
+                // 4. Offset Vector (항상 빨간색 선)
                 log.ConcentricitySeriesCollection.Add(new LineSeries
                 {
-                    Values = new ChartValues<ObservablePoint> { new ObservablePoint(0, 0), new ObservablePoint(holeCx, holeCy) },
+                    Title = "Offset Vector",
+                    Values = new ChartValues<ObservablePoint>
+                    {
+                        new ObservablePoint(0, 0),
+                        new ObservablePoint(holeCx, holeCy)
+                    },
                     PointGeometry = null,
-                    Stroke = hColor,
-                    StrokeThickness = 2
+                    Stroke = Brushes.Red, // ★ 항상 빨간색
+                    StrokeThickness = 2,
+                    Fill = Brushes.Transparent
                 });
             }
 
@@ -348,7 +356,8 @@ namespace AMPManager.View
                     Title = "Hole Offset",
                     Values = new ChartValues<double> { log.HoleOffset },
                     PointGeometrySize = 10,
-                    Stroke = Brushes.Orange
+                    Stroke = Brushes.Orange,
+                    Fill = Brushes.Transparent
                 }
             };
             log.ChartLabels = new[] { "Current" };

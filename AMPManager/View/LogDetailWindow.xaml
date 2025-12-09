@@ -22,13 +22,13 @@
             <Border Grid.Column="0" Background="#2F2F3D" CornerRadius="5" Margin="5">
                 <Grid>
                     <TextBlock Text="Top View (Cam 1)" Foreground="#808080" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    <Image Source="{Binding Cam1Path}" Stretch="Uniform"/>
+                    <Image Source="{Binding Img1}" Stretch="Uniform"/>
                 </Grid>
             </Border>
             <Border Grid.Column="1" Background="#2F2F3D" CornerRadius="5" Margin="5">
                 <Grid>
                     <TextBlock Text="Side View (Cam 2)" Foreground="#808080" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    <Image Source="{Binding Cam2Path}" Stretch="Uniform"/>
+                    <Image Source="{Binding Img2}" Stretch="Uniform"/>
                 </Grid>
             </Border>
         </Grid>

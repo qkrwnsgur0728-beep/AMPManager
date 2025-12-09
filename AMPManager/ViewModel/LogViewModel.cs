@@ -13,6 +13,7 @@ namespace AMPManager.ViewModel
 {
     public class LogViewModel : BaseViewModel
     {
+        // [수정 1] ApiService 변수 선언 및 초기화 추가 (이게 없으면 컴파일 에러가 납니다!)
         private ApiService _apiService = new ApiService();
 
         private List<LogEntry> _allLogs = new List<LogEntry>();
@@ -32,32 +33,26 @@ namespace AMPManager.ViewModel
 
         public LogViewModel()
         {
-            // [수정 1] 버튼 클릭 시에는 메시지를 띄우도록(true) 설정
             SearchCommand = new RelayCommand(o => LoadData(true));
             OpenDetailCommand = new RelayCommand(OpenDetailWindow);
 
-            // [수정 2] 초기 실행 시에는 메시지를 안 띄우도록(false) 설정
             LoadData(false);
         }
 
-        // [수정 3] 파라미터 추가 (기본값 true)
         private async void LoadData(bool showMessage = true)
         {
             _allLogs.Clear();
-            LogData.Clear(); // 화면 먼저 비우기
+            LogData.Clear();
 
             string formattedDate = SearchDate;
 
-            // 날짜 포맷 보정
             if (formattedDate.Contains('.')) formattedDate = formattedDate.Replace('.', '-');
             if (DateTime.TryParse(formattedDate, out DateTime parsedDate)) formattedDate = parsedDate.ToString("yyyy-MM-dd");
 
-            // 서버 API 호출
             var logs = await _apiService.GetLogsAsync(formattedDate);
 
             if (logs == null) return;
 
-            // [수정 4] 데이터가 없을 때 showMessage가 true일 때만 알림창 띄움
             if (logs.Count == 0 && formattedDate.ToUpper() != "ALL")
             {
                 if (showMessage)
@@ -86,12 +81,11 @@ namespace AMPManager.ViewModel
         {
             if (parameter is LogEntry log)
             {
-                // 1. 서버에서 상세 측정 데이터(Contour, Limits 등) 가져오기
+                // 1. 서버 데이터 가져오기
                 var detailLog = await _apiService.GetLogDetailAsync(log.Id);
 
                 if (detailLog != null)
                 {
-                    // 받아온 상세 정보를 현재 log 객체에 병합
                     log.MeasuredContour = detailLog.MeasuredContour;
                     log.MeasuredCenter = detailLog.MeasuredCenter;
                     log.TemplateData = detailLog.TemplateData;
@@ -109,12 +103,17 @@ namespace AMPManager.ViewModel
                 log.Img1 = ByteToImage(imgBytes1);
                 log.Img2 = ByteToImage(imgBytes2);
 
-                // 3. 꽉 찬 정보(log)를 가지고 창 열기
+                // 3. 창 열기
                 var window = new LogDetailWindow(log);
-                if (System.Windows.Application.Current.MainWindow != null)
+
+                // Owner 설정 (Null 체크 포함)
+                if (System.Windows.Application.Current != null &&
+                    System.Windows.Application.Current.MainWindow != null)
                 {
                     window.Owner = System.Windows.Application.Current.MainWindow;
                 }
+
+                // [수정 2] 창을 화면에 띄우는 코드 추가 (이게 없으면 버튼 눌러도 반응이 없습니다)
                 window.ShowDialog();
             }
         }

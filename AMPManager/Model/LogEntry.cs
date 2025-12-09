@@ -71,7 +71,20 @@ namespace AMPManager.Model
 
         public VisualElementsCollection ShapeVisuals { get; set; }
 
+        // [변경 시작] 생성자 추가: 리스트들이 Null이 되지 않도록 초기화
+        public LogEntry()
+        {
+            ChartSeriesCollection = new SeriesCollection();
+            ShapeSeriesCollection = new SeriesCollection();
+            DeviationSeriesCollection = new SeriesCollection();
+            ConcentricitySeriesCollection = new SeriesCollection();
 
+            ChartLabels = new string[] { };
+            DeviationLabels = new string[] { };
 
+            ShapeVisuals = new VisualElementsCollection();
+            DeviationSections = new SectionsCollection();
+        }
+        // [변경 끝]
     }
 }
