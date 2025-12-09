@@ -13,13 +13,11 @@ namespace AMPManager.ViewModel
 {
     public class LogViewModel : BaseViewModel
     {
-        // [수정] 로컬 DB 대신 API 서비스를 사용합니다.
         private ApiService _apiService = new ApiService();
 
         private List<LogEntry> _allLogs = new List<LogEntry>();
         public ObservableCollection<LogEntry> LogData { get; } = new ObservableCollection<LogEntry>();
 
-        // 1. 검색 조건
         private string _searchDate = DateTime.Now.ToString("yyyy-MM-dd");
         public string SearchDate { get => _searchDate; set => SetProperty(ref _searchDate, value); }
 
@@ -36,45 +34,31 @@ namespace AMPManager.ViewModel
         {
             SearchCommand = new RelayCommand(o => LoadData());
             OpenDetailCommand = new RelayCommand(OpenDetailWindow);
+            LoadData(); // 화면 켜질 때 자동 로드
         }
 
         private async void LoadData()
         {
             _allLogs.Clear();
-
             string formattedDate = SearchDate;
 
-            // YYYY-MM-DD 형식으로 변환 (클라이언트의 입력 형식이 다를 수 있으므로)
-            if (formattedDate.Contains('.'))
-            {
-                formattedDate = formattedDate.Replace('.', '-');
-            }
-            if (DateTime.TryParse(formattedDate, out DateTime parsedDate))
-            {
-                formattedDate = parsedDate.ToString("yyyy-MM-dd");
-            }
+            // 날짜 포맷 보정
+            if (formattedDate.Contains('.')) formattedDate = formattedDate.Replace('.', '-');
+            if (DateTime.TryParse(formattedDate, out DateTime parsedDate)) formattedDate = parsedDate.ToString("yyyy-MM-dd");
 
-            // [수정] 서버 API 호출 (비동기)
+            // 서버 API 호출
             var logs = await _apiService.GetLogsAsync(formattedDate);
 
-            // 결과 처리
             if (logs == null) return;
-
-            if (logs.Count == 0)
+            if (logs.Count == 0 && formattedDate.ToUpper() != "ALL")
             {
-                // 'ALL' 같은 특수 명령어가 아닐 때만 메시지 표시
-                if (formattedDate.ToUpper() != "ALL")
-                {
-                    System.Windows.MessageBox.Show($"'{formattedDate}' 날짜의 데이터가 없습니다.", "알림");
-                }
+                System.Windows.MessageBox.Show($"'{formattedDate}' 날짜의 데이터가 없습니다.", "알림");
             }
 
             foreach (var log in logs)
             {
-                // 서버 데이터 보정 (비고란 등)
                 if (string.IsNullOrEmpty(log.DefectReason))
                     log.DefectReason = (log.Status == "불량") ? "치수 오차 초과" : "-";
-
                 _allLogs.Add(log);
             }
             FilterLogs();
@@ -83,27 +67,39 @@ namespace AMPManager.ViewModel
         private void FilterLogs()
         {
             LogData.Clear();
-            var filtered = _allLogs.Where(x =>
-                (IsCheckedNormal && x.Status == "정상") ||
-                (IsCheckedDefect && x.Status == "불량")
-            );
-
+            var filtered = _allLogs.Where(x => (IsCheckedNormal && x.Status == "정상") || (IsCheckedDefect && x.Status == "불량"));
             foreach (var item in filtered) LogData.Add(item);
         }
 
+        // ★ [수정됨] 상세 창 열기 전 서버에서 데이터를 다 받아옴
         private async void OpenDetailWindow(object? parameter)
         {
             if (parameter is LogEntry log)
             {
-                // [수정] 서버에서 이미지 데이터 가져오기 (API 호출)
-                // log.Id는 서버 DB의 measure_id에 해당합니다.
-                var (imgBytes1, imgBytes2) = await _apiService.GetLogImagesAsync(log.Id);
+                // 1. 서버에서 상세 측정 데이터(Contour, Limits 등) 가져오기
+                var detailLog = await _apiService.GetLogDetailAsync(log.Id);
 
-                // 이미지 변환
+                if (detailLog != null)
+                {
+                    // 받아온 상세 정보를 현재 log 객체에 병합
+                    log.MeasuredContour = detailLog.MeasuredContour;
+                    log.MeasuredCenter = detailLog.MeasuredCenter;
+                    log.TemplateData = detailLog.TemplateData;
+                    log.TolShape = detailLog.TolShape;
+                    log.TolHole = detailLog.TolHole;
+                    log.LimitWarn = detailLog.LimitWarn;
+                    log.LimitFail = detailLog.LimitFail;
+                    log.HoleOffset = detailLog.HoleOffset;
+                    log.AreaSize = detailLog.AreaSize;
+                    log.DefectReason = detailLog.DefectReason;
+                }
+
+                // 2. 이미지 가져오기
+                var (imgBytes1, imgBytes2) = await _apiService.GetLogImagesAsync(log.Id);
                 log.Img1 = ByteToImage(imgBytes1);
                 log.Img2 = ByteToImage(imgBytes2);
 
-                // 상세 창 띄우기
+                // 3. 꽉 찬 정보(log)를 가지고 창 열기
                 var window = new LogDetailWindow(log);
                 if (System.Windows.Application.Current.MainWindow != null)
                 {
@@ -116,7 +112,6 @@ namespace AMPManager.ViewModel
         private System.Windows.Media.ImageSource? ByteToImage(byte[]? bytes)
         {
             if (bytes == null || bytes.Length == 0) return null;
-
             try
             {
                 var image = new BitmapImage();

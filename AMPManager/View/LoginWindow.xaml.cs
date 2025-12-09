@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System; // InvalidOperationException 처리를 위해 필요
+using System.Windows;
 using AMPManager.ViewModel;
 
 namespace AMPManager.View
@@ -10,17 +11,17 @@ namespace AMPManager.View
             InitializeComponent();
             var vm = new LoginViewModel();
 
-            // 뷰모델의 "닫기" 신호가 오면 실제로 창을 닫고 DialogResult를 true로 설정
+            // ★ 에러 방지 코드 적용됨
             vm.CloseAction = () =>
             {
                 try
                 {
-                    // ShowDialog()로 열렸을 때만 작동
+                    // 모달 창(ShowDialog)일 때만 작동
                     this.DialogResult = true;
                 }
                 catch (InvalidOperationException)
                 {
-                    // Show()로 열렸으면 예외 발생 -> 그냥 무시하고 닫기 진행
+                    // 일반 창(Show)일 때 발생하는 에러 무시
                 }
                 this.Close();
             };
