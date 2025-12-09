@@ -4,8 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
-using System.Windows.Controls; // TextBlock 사용
-using System.Windows.Shapes; // Ellipse 사용
+using System.Windows.Controls;
+using System.Windows.Shapes;
 using Newtonsoft.Json.Linq;
 using LiveCharts;
 using LiveCharts.Wpf;
@@ -14,7 +14,7 @@ using WpfBrushes = System.Windows.Media.Brushes;
 using WpfColor = System.Windows.Media.Color;
 using WpfSolidColorBrush = System.Windows.Media.SolidColorBrush;
 using WpfDoubleCollection = System.Windows.Media.DoubleCollection;
-using System.Windows.Media; // FontWeight 사용
+using System.Windows.Media;
 
 namespace AMPManager.View
 {
@@ -26,9 +26,17 @@ namespace AMPManager.View
         {
             InitializeComponent();
 
+            // 1. 상세 데이터 가져오기
             LogEntry fullLog = _dbManager.GetLogDetail(summaryLog.MeasureId);
             if (fullLog == null) fullLog = summaryLog;
 
+            // 2. [중요] 가이드가 안 보이는 문제 해결 -> 공차 값이 0이면 기본값 강제 할당
+            if (fullLog.LimitFail == 0) fullLog.LimitFail = 6.0;  // 편차 그래프 빨간 점선
+            if (fullLog.LimitWarn == 0) fullLog.LimitWarn = 4.0;  // 편차 그래프 노란 배경 기준
+            if (fullLog.TolShape == 0) fullLog.TolShape = 10.0;   // 형상 그래프 녹색 띠 두께
+            if (fullLog.TolHole == 0) fullLog.TolHole = 5.0;      // 동심도 녹색 원 반지름
+
+            // 3. 판정 결과 색상
             bool isPass = (fullLog.Status == "OK" || (fullLog.Status != null && fullLog.Status.Contains("Pass")));
             fullLog.StatusColor = isPass ? WpfBrushes.LightGreen : WpfBrushes.Red;
 
@@ -41,12 +49,14 @@ namespace AMPManager.View
         private void InitializeGraphs(LogEntry log)
         {
             var measuredPoints = new ChartValues<ObservablePoint>();
-            var idealPoints = new ChartValues<ObservablePoint>(); // Ideal points for the shape
+            var idealPoints = new ChartValues<ObservablePoint>();
 
             double holeCx = 0, holeCy = 0;
             bool holeFound = false;
 
-            // [A] 데이터 파싱 (Measured Contour)
+            // =========================================================
+            // [1] 데이터 파싱 (형상, 중심점, 기준데이터)
+            // =========================================================
             if (!string.IsNullOrWhiteSpace(log.MeasuredContour))
             {
                 try
@@ -57,14 +67,13 @@ namespace AMPManager.View
                     if (xArr != null && yArr != null)
                     {
                         for (int i = 0; i < xArr.Count; i++) measuredPoints.Add(new ObservablePoint(xArr[i], yArr[i]));
-                        // Measured points 닫기 (LineSeries 용)
+                        // 도형 닫기
                         if (measuredPoints.Count > 0) measuredPoints.Add(new ObservablePoint(measuredPoints[0].X, measuredPoints[0].Y));
                     }
                 }
                 catch { }
             }
 
-            // [A] 데이터 파싱 (Center Info)
             if (!string.IsNullOrWhiteSpace(log.MeasuredCenter))
             {
                 try
@@ -80,7 +89,6 @@ namespace AMPManager.View
                 catch { }
             }
 
-            // [A] 데이터 파싱 (TemplateData: Ideal Points)
             if (!string.IsNullOrWhiteSpace(log.TemplateData))
             {
                 try
@@ -96,150 +104,221 @@ namespace AMPManager.View
                 catch { }
             }
 
-            // 기본 육각형 (DB 데이터 없을 경우)
+            // DB 데이터 없을 때 보여줄 기본 육각형 (테스트용)
             if (idealPoints.Count == 0)
             {
-                // P0(상단) 부터 시계방향
                 idealPoints.AddRange(new[] {
-                    new ObservablePoint(0, 63),   // P0
-                    new ObservablePoint(55, 33),  // P1
-                    new ObservablePoint(55, -33), // P2
-                    new ObservablePoint(0, -63),  // P3
-                    new ObservablePoint(-55, -33),// P4
-                    new ObservablePoint(-55, 33)  // P5
+                    new ObservablePoint(0, 63), new ObservablePoint(55, 33), new ObservablePoint(55, -33),
+                    new ObservablePoint(0, -63), new ObservablePoint(-55, -33), new ObservablePoint(-55, 33)
                 });
             }
+            if (idealPoints.Count > 0) idealPoints.Add(new ObservablePoint(idealPoints[0].X, idealPoints[0].Y));
 
-            // ------------------------------------------------------------------
-            // ★★★ P0 ~ P5 라벨 및 중앙 점 추가 로직 (VisualElements) ★★★
-            // ------------------------------------------------------------------
+
+            // =========================================================
+            // [2] 그래프 1: 형상 분석 (Shape) - Overlay 적용
+            // =========================================================
             log.ShapeVisuals = new VisualElementsCollection();
 
-            // 1. 라벨 추가 (P0 ~ P5)
-            for (int i = 0; i < idealPoints.Count && i < 6; i++)
+            // P0~P5 라벨 붙이기
+            for (int i = 0; i < idealPoints.Count - 1 && i < 6; i++)
             {
                 var point = idealPoints[i];
-
-                // 텍스트 위치 약간 바깥쪽으로 조정 (오프셋)
-                double offsetX = point.X * 0.1;
-                double offsetY = point.Y * 0.1;
-
-                // P0, P3의 X축 오프셋 보정
-                if (Math.Abs(point.X) < 1) offsetX = (point.Y > 0) ? -20 : -20;
+                double offsetX = point.X * 0.15; // 라벨을 조금 더 바깥으로
+                double offsetY = point.Y * 0.15;
+                if (Math.Abs(point.X) < 1) offsetX = (point.Y > 0) ? -15 : -15; // 상하단 포인트 위치 보정
 
                 log.ShapeVisuals.Add(new VisualElement
                 {
                     X = point.X + offsetX,
                     Y = point.Y + offsetY,
-                    UIElement = new TextBlock
-                    {
-                        Text = $"P{i}",
-                        Foreground = WpfBrushes.White,
-                        FontSize = 14,
-                        FontWeight = FontWeights.Bold
-                    }
+                    UIElement = new TextBlock { Text = $"P{i}", Foreground = WpfBrushes.White, FontWeight = FontWeights.Bold, FontSize = 14 }
                 });
             }
-
-            // 2. 중앙 점 (파란색 Cross)
+            // 중앙 십자 마크
             log.ShapeVisuals.Add(new VisualElement
             {
                 X = 0,
                 Y = 0,
-                UIElement = new System.Windows.Shapes.Ellipse
+                UIElement = new Path
                 {
-                    Width = 8,
-                    Height = 8,
-                    Fill = WpfBrushes.White
+                    Data = Geometry.Parse("M -5,0 L 5,0 M 0,-5 L 0,5"),
+                    Stroke = WpfBrushes.Cyan,
+                    StrokeThickness = 2
                 }
             });
 
-
-            // 닫힌 도형을 위해 Ideal points에 마지막 점 추가 (LineSeries 용)
-            if (idealPoints.Count > 0) idealPoints.Add(new ObservablePoint(idealPoints[0].X, idealPoints[0].Y));
-
-
-            // [Graph 1] 형상 (직선 연결) - Ref Edge 라인 추가됨
-            log.ShapeSeriesCollection = new SeriesCollection {
-                // 1. Tolerance (공차 영역)
-                new LineSeries {
-                    Title = "Tolerance", Values = idealPoints, PointGeometry = null,
-                    Stroke = new WpfSolidColorBrush(WpfColor.FromArgb(80, 0, 255, 0)),
-                    StrokeThickness = log.TolShape * 2, Fill = WpfBrushes.Transparent,
+            log.ShapeSeriesCollection = new SeriesCollection
+            {
+                // 1) [가이드] 허용 공차 띠 (반투명 녹색 굵은 선)
+                // StrokeThickness를 TolShape(공차) * 2로 설정해 띠처럼 보이게 함
+                new LineSeries
+                {
+                    Title = "Tolerance Band",
+                    Values = idealPoints,
+                    PointGeometry = null,
+                    Stroke = new WpfSolidColorBrush(WpfColor.FromArgb(60, 0, 255, 0)), // 60: 투명도 (흐릿한 녹색)
+                    StrokeThickness = log.TolShape * 2, // ★ 핵심: 이 두께 안에 파란선이 들어와야 함
+                    Fill = WpfBrushes.Transparent,
                     LineSmoothness = 0
                 },
-                // 2. Ref Edge (중앙 -> P0 빨간 실선) ★ 추가됨
-                new LineSeries {
+                // 2) [기준] Ideal 형상 (회색 점선)
+                new LineSeries
+                {
+                    Title = "Ideal",
+                    Values = idealPoints,
+                    PointGeometry = DefaultGeometries.Circle, PointGeometrySize = 5,
+                    Stroke = WpfBrushes.Gray,
+                    StrokeDashArray = new WpfDoubleCollection { 2 }, // 점선
+                    Fill = WpfBrushes.Transparent,
+                    LineSmoothness = 0
+                },
+                // 3) [측정] 실제 형상 (파란 실선) -> 제일 위에 그림
+                new LineSeries
+                {
+                    Title = "Measured",
+                    Values = measuredPoints,
+                    PointGeometry = null,
+                    Stroke = WpfBrushes.DodgerBlue,
+                    StrokeThickness = 2,
+                    Fill = new WpfSolidColorBrush(WpfColor.FromArgb(30, 30, 144, 255)), // 내부 살짝 채움
+                    LineSmoothness = 0
+                },
+                // 4) [기준] Ref Edge (회전 확인용 빨간선)
+                new LineSeries
+                {
                     Title = "Ref Edge",
                     Values = new ChartValues<ObservablePoint> { new ObservablePoint(0, 0), new ObservablePoint(idealPoints[0].X, idealPoints[0].Y) },
                     PointGeometry = null,
                     Stroke = WpfBrushes.Red,
                     StrokeThickness = 2,
-                    Fill = WpfBrushes.Transparent,
-                    LineSmoothness = 0
-                },
-                // 3. Ideal (회색 점선)
-                new LineSeries {
-                    Title = "Ideal", Values = idealPoints, PointGeometry = DefaultGeometries.Circle, PointGeometrySize = 6,
-                    Stroke = WpfBrushes.Gray, StrokeDashArray = new WpfDoubleCollection{2}, Fill = WpfBrushes.Transparent,
-                    LineSmoothness = 0
-                },
-                // 4. Measured (측정값 - 파란 실선)
-                new LineSeries {
-                    Title = "Measured", Values = measuredPoints, PointGeometry = null,
-                    Stroke = WpfBrushes.DodgerBlue, StrokeThickness = 2,
-                    Fill = new WpfSolidColorBrush(WpfColor.FromArgb(30, 30, 144, 255)),
-                    LineSmoothness = 0
+                    Fill = WpfBrushes.Transparent
                 }
             };
 
-            // [Graph 2] 편차
+
+            // =========================================================
+            // [3] 그래프 2: 편차 프로파일 (Deviation) - 배경 섹션 적용
+            // =========================================================
             var deviations = new ChartValues<double>();
             var labels = new List<string>();
+
             if (measuredPoints.Count > 0)
             {
                 double sumDist = measuredPoints.Take(measuredPoints.Count - 1).Sum(p => Math.Sqrt(p.X * p.X + p.Y * p.Y));
-                double meanRadius = (measuredPoints.Count > 1) ? sumDist / (measuredPoints.Count - 1) : 0;
+                double meanRadius = sumDist / (measuredPoints.Count - 1);
+
                 for (int i = 0; i < measuredPoints.Count - 1; i++)
                 {
-                    deviations.Add(Math.Sqrt(measuredPoints[i].X * measuredPoints[i].X + measuredPoints[i].Y * measuredPoints[i].Y) - meanRadius);
-                    // P0~P5 라벨링과 일치하도록 Deviation 그래프 라벨 수정
-                    labels.Add("P" + (i % 6).ToString());
+                    double dist = Math.Sqrt(measuredPoints[i].X * measuredPoints[i].X + measuredPoints[i].Y * measuredPoints[i].Y);
+                    deviations.Add(dist - meanRadius); // 평균 반경과의 차이
+                    labels.Add("P" + (i % 6));
                 }
+                // 그래프 끝 연결
                 if (deviations.Count > 0) deviations.Add(deviations[0]);
                 labels.Add("P0");
             }
             else { deviations.Add(0); labels.Add("-"); }
 
             log.DeviationLabels = labels.ToArray();
-            log.DeviationSeriesCollection = new SeriesCollection {
-                new LineSeries { Title="Dev", Values=deviations, PointGeometry=null, Stroke=WpfBrushes.Blue, StrokeThickness=2, Fill=WpfBrushes.Transparent, LineSmoothness=0 },
-                new LineSeries { Title="Max", Values=new ChartValues<double>(Enumerable.Repeat(log.LimitFail, deviations.Count)), PointGeometry=null, Stroke=WpfBrushes.Red, StrokeDashArray=new WpfDoubleCollection{2}, Fill=WpfBrushes.Transparent },
-                new LineSeries { Title="Min", Values=new ChartValues<double>(Enumerable.Repeat(-log.LimitFail, deviations.Count)), PointGeometry=null, Stroke=WpfBrushes.Red, StrokeDashArray=new WpfDoubleCollection{2}, Fill=WpfBrushes.Transparent }
-            };
-            log.DeviationSections = new SectionsCollection {
-                new AxisSection { Value = -log.LimitWarn, SectionWidth = log.LimitWarn * 2, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(40, 0, 255, 0)) },
-                new AxisSection { Value = log.LimitWarn, SectionWidth = log.LimitFail - log.LimitWarn, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(40, 255, 255, 0)) },
-                new AxisSection { Value = -log.LimitFail, SectionWidth = log.LimitFail - log.LimitWarn, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(40, 255, 255, 0)) }
+
+            // ★ 가이드 배경 설정 (초록/노랑/빨강)
+            log.DeviationSections = new SectionsCollection
+            {
+                // 안전 구역 (Green)
+                new AxisSection { Value = -log.LimitWarn, SectionWidth = log.LimitWarn * 2, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(30, 0, 255, 0)) },
+                // 경고 구역 (Yellow) - 위쪽
+                new AxisSection { Value = log.LimitWarn, SectionWidth = log.LimitFail - log.LimitWarn, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(30, 255, 255, 0)) },
+                // 경고 구역 (Yellow) - 아래쪽
+                new AxisSection { Value = -log.LimitFail, SectionWidth = log.LimitFail - log.LimitWarn, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(30, 255, 255, 0)) },
+                // 위험 구역 (Red)은 AxisSection 대신 Limit 선으로 표현하거나 추가 가능
             };
 
-            // [Graph 3] 동심도 (축 범위 -20 ~ 20)
-            log.ConcentricitySeriesCollection = new SeriesCollection {
-                new ScatterSeries { Title="Body", Values=new ChartValues<ObservablePoint>{new ObservablePoint(0,0)}, PointGeometry=DefaultGeometries.Cross, MinPointShapeDiameter=20, Stroke=WpfBrushes.Black, StrokeThickness=2, Fill=WpfBrushes.Transparent },
-                new LineSeries { Title="Safe", Values=GetCircle(log.TolHole), PointGeometry=null, Stroke=WpfBrushes.Green, StrokeDashArray=new WpfDoubleCollection{2}, Fill=new WpfSolidColorBrush(WpfColor.FromArgb(30,0,255,0)) }
+            log.DeviationSeriesCollection = new SeriesCollection
+            {
+                // 실제 편차 데이터
+                new LineSeries
+                {
+                    Title = "Dev", Values = deviations,
+                    PointGeometry = null, Stroke = WpfBrushes.Cyan, StrokeThickness = 2,
+                    Fill = WpfBrushes.Transparent, LineSmoothness = 1
+                },
+                // 상한선 (빨간 점선)
+                new LineSeries
+                {
+                    Title = "Max Limit",
+                    Values = new ChartValues<double>(Enumerable.Repeat(log.LimitFail, deviations.Count)),
+                    PointGeometry = null, Stroke = WpfBrushes.Red, StrokeThickness = 2, StrokeDashArray = new WpfDoubleCollection { 2 },
+                    Fill = WpfBrushes.Transparent
+                },
+                // 하한선 (빨간 점선)
+                new LineSeries
+                {
+                    Title = "Min Limit",
+                    Values = new ChartValues<double>(Enumerable.Repeat(-log.LimitFail, deviations.Count)),
+                    PointGeometry = null, Stroke = WpfBrushes.Red, StrokeThickness = 2, StrokeDashArray = new WpfDoubleCollection { 2 },
+                    Fill = WpfBrushes.Transparent
+                }
             };
+
+
+            // =========================================================
+            // [4] 그래프 3: 동심도 (Concentricity) - 조준선 및 Safe Circle
+            // =========================================================
+            var centerColor = (Math.Sqrt(holeCx * holeCx + holeCy * holeCy) <= log.TolHole) ? WpfBrushes.LimeGreen : WpfBrushes.Red;
+
+            log.ConcentricitySeriesCollection = new SeriesCollection
+            {
+                // 1) 십자선 (기준점 0,0)
+                new ScatterSeries
+                {
+                    Title = "Center", Values = new ChartValues<ObservablePoint> { new ObservablePoint(0, 0) },
+                    PointGeometry = DefaultGeometries.Cross, MinPointShapeDiameter = 15,
+                    Stroke = WpfBrushes.White, StrokeThickness = 2
+                },
+                // 2) [가이드] 안전 범위 (녹색 원)
+                new LineSeries
+                {
+                    Title = "Safe Zone", Values = GetCircle(log.TolHole),
+                    PointGeometry = null,
+                    Stroke = WpfBrushes.LimeGreen, StrokeThickness = 2, StrokeDashArray = new WpfDoubleCollection { 2 },
+                    Fill = new WpfSolidColorBrush(WpfColor.FromArgb(20, 0, 255, 0)) // 내부 살짝 칠하기
+                }
+            };
+
+            // 3) [측정] 구멍 중심점 (빨강/초록 점)
             if (holeFound)
             {
-                var hColor = (Math.Sqrt(holeCx * holeCx + holeCy * holeCy) <= log.TolHole) ? WpfBrushes.Blue : WpfBrushes.Red;
-                log.ConcentricitySeriesCollection.Add(new ScatterSeries { Values = new ChartValues<ObservablePoint> { new ObservablePoint(holeCx, holeCy) }, PointGeometry = DefaultGeometries.Circle, MinPointShapeDiameter = 10, Fill = hColor });
-                log.ConcentricitySeriesCollection.Add(new LineSeries { Values = new ChartValues<ObservablePoint> { new ObservablePoint(0, 0), new ObservablePoint(holeCx, holeCy) }, PointGeometry = null, Stroke = hColor, StrokeThickness = 2, Fill = WpfBrushes.Transparent });
+                log.ConcentricitySeriesCollection.Add(new ScatterSeries
+                {
+                    Title = "Hole",
+                    Values = new ChartValues<ObservablePoint> { new ObservablePoint(holeCx, holeCy) },
+                    PointGeometry = DefaultGeometries.Circle,
+                    MinPointShapeDiameter = 10,
+                    Fill = centerColor
+                });
+                // 원점과 측정점 연결선
+                log.ConcentricitySeriesCollection.Add(new LineSeries
+                {
+                    Values = new ChartValues<ObservablePoint> { new ObservablePoint(0, 0), new ObservablePoint(holeCx, holeCy) },
+                    PointGeometry = null,
+                    Stroke = centerColor,
+                    StrokeThickness = 1,
+                    StrokeDashArray = new WpfDoubleCollection { 2 }
+                });
             }
         }
 
+        // 원 그리기 헬퍼 함수
         private ChartValues<ObservablePoint> GetCircle(double r)
         {
             var p = new ChartValues<ObservablePoint>();
-            for (int i = 0; i <= 360; i += 5) p.Add(new ObservablePoint(r * Math.Cos(i * Math.PI / 180), r * Math.Sin(i * Math.PI / 180)));
+            // 점을 촘촘하게 찍어서 원처럼 보이게 함
+            for (int i = 0; i <= 360; i += 10)
+            {
+                double rad = i * Math.PI / 180.0;
+                p.Add(new ObservablePoint(r * Math.Cos(rad), r * Math.Sin(rad)));
+            }
             return p;
         }
     }

@@ -43,10 +43,9 @@
             <Border Grid.Column="0" Background="#2F2F3D" CornerRadius="10" Margin="5" Padding="10">
                 <Grid>
                     <TextBlock Text="형상 분석 (Shape)" Foreground="#00C1D4" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Top"/>
-
                     <lvc:CartesianChart Series="{Binding ShapeSeriesCollection}" 
-                                        VisualElements="{Binding ShapeVisuals}" Margin="0,25,0,0" LegendLocation="Bottom" Hoverable="False" DataTooltip="{x:Null}">
-
+                                        VisualElements="{Binding ShapeVisuals}" 
+                                        Margin="0,25,0,0" LegendLocation="Bottom" Hoverable="False" DataTooltip="{x:Null}">
                         <lvc:CartesianChart.AxisX>
                             <lvc:Axis ShowLabels="True" MinValue="-150" MaxValue="150">
                                 <lvc:Axis.Separator>
@@ -54,7 +53,6 @@
                                 </lvc:Axis.Separator>
                             </lvc:Axis>
                         </lvc:CartesianChart.AxisX>
-
                         <lvc:CartesianChart.AxisY>
                             <lvc:Axis ShowLabels="True" MinValue="-150" MaxValue="150">
                                 <lvc:Axis.Separator>
@@ -62,7 +60,6 @@
                                 </lvc:Axis.Separator>
                             </lvc:Axis>
                         </lvc:CartesianChart.AxisY>
-
                     </lvc:CartesianChart>
                 </Grid>
             </Border>
