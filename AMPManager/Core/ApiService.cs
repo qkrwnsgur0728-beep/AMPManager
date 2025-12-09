@@ -123,10 +123,13 @@ namespace AMPManager.Core
                         AreaSize = item.area_size ?? 0.0,
                         ModelScore = item.model_score ?? 0.0,
 
-                        TolShape = 0,
-                        TolHole = 0,
-                        LimitWarn = 0,
-                        LimitFail = 0,
+                        // ★★★★ 수정된 부분: 서버에서 받은 공차 값 사용 ★★★★
+                        TolShape = item.tol_shape ?? 5.0,
+                        TolHole = item.tol_hole ?? 5.0,
+                        LimitWarn = item.limit_warn ?? 4.5,
+                        LimitFail = item.limit_fail ?? 6.0,
+                        // ★★★★ 수정된 부분 끝 ★★★★
+
                         DefectReason = item.fail_reason ?? "-"
                     };
                 }
@@ -215,6 +218,13 @@ namespace AMPManager.Core
             [JsonProperty("hole_offset")] public double? hole_offset { get; set; }
             [JsonProperty("area_size")] public double? area_size { get; set; }
             [JsonProperty("fail_reason")] public string fail_reason { get; set; }
+
+            // ★★★★ 추가된 공차 필드 ★★★★
+            [JsonProperty("limit_fail")] public double? limit_fail { get; set; }
+            [JsonProperty("limit_warn")] public double? limit_warn { get; set; }
+            [JsonProperty("tol_shape")] public double? tol_shape { get; set; }
+            [JsonProperty("tol_hole")] public double? tol_hole { get; set; }
+            // ★★★★ 추가된 공차 필드 끝 ★★★★
         }
     }
 

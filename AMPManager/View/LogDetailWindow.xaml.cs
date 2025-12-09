@@ -132,15 +132,26 @@ namespace AMPManager.View
 
             if (idealPoints.Count > 0) idealPoints.Add(new ObservablePoint(idealPoints[0].X, idealPoints[0].Y));
 
-            // [Graph 1] 형상
+            // [Graph 1] 형상 (육각형 가이드)
             log.ShapeSeriesCollection = new SeriesCollection {
-                new LineSeries { Title = "Tolerance", Values = idealPoints, PointGeometry = null, Stroke = new WpfSolidColorBrush(WpfColor.FromArgb(80, 0, 255, 0)), StrokeThickness = log.TolShape * 2, Fill = WpfBrushes.Transparent, LineSmoothness = 0 },
+                // (1) 초록색 육각형 가이드 (Tolerance) - 어두운 초록색 (G=190) 적용
+                new LineSeries {
+                    Title = "Tolerance",
+                    Values = idealPoints,
+                    PointGeometry = null,
+                    Stroke = new WpfSolidColorBrush(WpfColor.FromArgb(200, 0, 190, 0)),
+                    StrokeThickness = log.TolShape * 2,
+                    Fill = WpfBrushes.Transparent,
+                    LineSmoothness = 0
+                },
+                // (2) Ref Edge, Ideal (배경)
                 new LineSeries { Title = "Ref Edge", Values = new ChartValues<ObservablePoint> { new ObservablePoint(0, 0), new ObservablePoint(idealPoints[0].X, idealPoints[0].Y) }, PointGeometry = null, Stroke = WpfBrushes.Red, StrokeThickness = 2, Fill = WpfBrushes.Transparent, LineSmoothness = 0 },
                 new LineSeries { Title = "Ideal", Values = idealPoints, PointGeometry = DefaultGeometries.Circle, PointGeometrySize = 6, Stroke = WpfBrushes.Gray, StrokeDashArray = new WpfDoubleCollection{2}, Fill = WpfBrushes.Transparent, LineSmoothness = 0 },
-                new LineSeries { Title = "Measured", Values = measuredPoints, PointGeometry = null, Stroke = WpfBrushes.DodgerBlue, StrokeThickness = 2, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(30, 30, 144, 255)), LineSmoothness = 0 }
+                // (3) Measured (측정값) - 가장 위에 오버레이
+                new LineSeries { Title = "Measured", Values = measuredPoints, PointGeometry = null, Stroke = WpfBrushes.Blue, StrokeThickness = 2, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(30, 30, 144, 255)), LineSmoothness = 0 }
             };
 
-            // [Graph 2] 편차
+            // [Graph 2] 편차 (굵은 영역 가이드)
             var deviations = new ChartValues<double>();
             var labels = new List<string>();
             if (measuredPoints.Count > 0)
@@ -159,23 +170,39 @@ namespace AMPManager.View
 
             log.DeviationLabels = labels.ToArray();
             log.DeviationSeriesCollection = new SeriesCollection {
+                // (1) Measured (측정값) - 가장 위에 오버레이
                 new LineSeries { Title="Dev", Values=deviations, PointGeometry=null, Stroke=WpfBrushes.Blue, StrokeThickness=2, Fill=WpfBrushes.Transparent, LineSmoothness=0 },
+                // (2) Max/Min (빨간색 불량 기준선)
                 new LineSeries { Title="Max", Values=new ChartValues<double>(Enumerable.Repeat(log.LimitFail, deviations.Count)), PointGeometry=null, Stroke=WpfBrushes.Red, StrokeDashArray=new WpfDoubleCollection{2}, Fill=WpfBrushes.Transparent },
                 new LineSeries { Title="Min", Values=new ChartValues<double>(Enumerable.Repeat(-log.LimitFail, deviations.Count)), PointGeometry=null, Stroke=WpfBrushes.Red, StrokeDashArray=new WpfDoubleCollection{2}, Fill=WpfBrushes.Transparent }
             };
+            // (3) 초록색/노란색 영역 가이드 (AxisSection) - 어두운 초록색 (G=190) 적용
             log.DeviationSections = new SectionsCollection {
-                new AxisSection { Value = -log.LimitWarn, SectionWidth = log.LimitWarn * 2, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(40, 0, 255, 0)) },
-                new AxisSection { Value = log.LimitWarn, SectionWidth = log.LimitFail - log.LimitWarn, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(40, 255, 255, 0)) },
-                new AxisSection { Value = -log.LimitFail, SectionWidth = log.LimitFail - log.LimitWarn, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(40, 255, 255, 0)) }
+                // 초록색 안전 영역
+                new AxisSection { Value = -log.LimitWarn, SectionWidth = log.LimitWarn * 2, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(120, 0, 190, 0)) }, 
+                // 노란색 경고 영역 (상단)
+                new AxisSection { Value = log.LimitWarn, SectionWidth = log.LimitFail - log.LimitWarn, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(120, 255, 255, 0)) }, 
+                // 노란색 경고 영역 (하단)
+                new AxisSection { Value = -log.LimitFail, SectionWidth = log.LimitFail - log.LimitWarn, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(120, 255, 255, 0)) }
             };
 
-            // [Graph 3] 동심도
+            // [Graph 3] 동심도 (원 가이드)
             log.ConcentricitySeriesCollection = new SeriesCollection {
-                new ScatterSeries { Title="Body", Values=new ChartValues<ObservablePoint>{new ObservablePoint(0,0)}, PointGeometry=DefaultGeometries.Cross, MinPointShapeDiameter=20, Stroke=WpfBrushes.Black, StrokeThickness=2, Fill=WpfBrushes.Transparent },
-                new LineSeries { Title="Safe", Values=GetCircle(log.TolHole), PointGeometry=null, Stroke=WpfBrushes.Green, StrokeDashArray=new WpfDoubleCollection{2}, Fill=new WpfSolidColorBrush(WpfColor.FromArgb(30,0,255,0)) }
+                // (1) 중앙 기준점 (Body)
+                new ScatterSeries { Title="Body", Values=new ChartValues<ObservablePoint>{new ObservablePoint(0,0)}, PointGeometry=DefaultGeometries.Cross, MinPointShapeDiameter=20, Stroke=WpfBrushes.Black, StrokeThickness = 2, Fill = WpfBrushes.Transparent },
+                // (2) 초록색 원형 가이드 (Safe Zone) - 어두운 초록색 (G=190) 적용
+                new LineSeries {
+                    Title = "Safe",
+                    Values = GetCircle(log.TolHole),
+                    PointGeometry = null,
+                    Stroke = new WpfSolidColorBrush(WpfColor.FromRgb(0, 150, 0)), // 더 진한 녹색 선 (0, 150, 0)
+                    StrokeDashArray = new WpfDoubleCollection{2},
+                    Fill = new WpfSolidColorBrush(WpfColor.FromArgb(100, 0, 190, 0)) // 어두운 녹색 영역 채우기
+                }
             };
             if (holeFound)
             {
+                // (3) Measured (측정값) - 가장 위에 오버레이
                 var hColor = (Math.Sqrt(holeCx * holeCx + holeCy * holeCy) <= log.TolHole) ? WpfBrushes.Blue : WpfBrushes.Red;
                 log.ConcentricitySeriesCollection.Add(new ScatterSeries { Values = new ChartValues<ObservablePoint> { new ObservablePoint(holeCx, holeCy) }, PointGeometry = DefaultGeometries.Circle, MinPointShapeDiameter = 10, Fill = hColor });
                 log.ConcentricitySeriesCollection.Add(new LineSeries { Values = new ChartValues<ObservablePoint> { new ObservablePoint(0, 0), new ObservablePoint(holeCx, holeCy) }, PointGeometry = null, Stroke = hColor, StrokeThickness = 2, Fill = WpfBrushes.Transparent });
