@@ -185,7 +185,7 @@ namespace AMPManager.ViewModel
                     await _apiService.ControlCctvAsync("1");
 
                     // 3. 웹소켓 연결 (영상 수신 시작) - IP 192.168.0.28
-                    string fastApiIp = "192.168.0.28";
+                    string fastApiIp = "192.168.0.7";
                     int fastApiPort = 8000;
                     string url1 = $"ws://{fastApiIp}:{fastApiPort}/api/view/1";
                     string url2 = $"ws://{fastApiIp}:{fastApiPort}/api/view/2";
@@ -210,7 +210,7 @@ namespace AMPManager.ViewModel
 
             if (success)
             {
-                string fastApiIp = "192.168.0.28"; // IP 수정됨
+                string fastApiIp = "192.168.0.7"; // IP 수정됨
                 int fastApiPort = 8000;
                 await _wsService1.ConnectAsync($"ws://{fastApiIp}:{fastApiPort}/api/view/1");
                 await _wsService2.ConnectAsync($"ws://{fastApiIp}:{fastApiPort}/api/view/2");
