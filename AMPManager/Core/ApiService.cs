@@ -65,12 +65,11 @@ namespace AMPManager.Core
             return false;
         }
 
-        // [3] 로그 목록 조회 (start_date 사용 안함 -> startDate)
+        // [3] 로그 목록 조회
         public async Task<List<LogEntry>> GetLogsAsync(string date)
         {
             try
             {
-                // [확인됨] 서버가 'startDate' 파라미터를 요구함
                 var payload = new { startDate = date };
                 var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
                 var response = await _client.PostAsync($"{BaseUrl}/api/logs", content);
@@ -95,42 +94,40 @@ namespace AMPManager.Core
             return new List<LogEntry>();
         }
 
-        // [4] ★ 로그 상세 정보 조회 (그래프 데이터 파싱 문제 해결)
+        // [4] 로그 상세 정보 조회 (/logsdetail?mid=...)
         public async Task<LogEntry?> GetLogDetailAsync(int mid)
         {
             try
             {
-                var response = await _client.GetAsync($"{BaseUrl}/api/logs/{mid}");
+                var response = await _client.GetAsync($"{BaseUrl}/api/logsdetail?mid={mid}");
+
                 if (response.IsSuccessStatusCode)
                 {
                     string json = await response.Content.ReadAsStringAsync();
-                    Debug.WriteLine($"[Detail Raw]: {json}"); // 데이터 들어오는지 확인
-
-                    // JSON 파싱 시도
-                    var item = JsonConvert.DeserializeObject<ServerLogDetail>(json);
+                    var item = JsonConvert.DeserializeObject<ServerLogDetailResponse>(json);
                     if (item == null) return null;
 
                     return new LogEntry
                     {
-                        Id = item.mid,
-                        Timestamp = item.timestamp,
-                        PropertyName = item.product_name,
-                        Status = (item.result == "NG" ? "불량" : "정상"),
+                        Id = item.measure_id,
+                        Timestamp = item.measured_at?.ToString("yyyy-MM-dd HH:mm:ss") ?? "",
+                        PropertyName = item.product_id.ToString(),
 
-                        // ★ 중요: object로 받은 데이터를 문자열로 변환하여 할당
-                        MeasuredContour = item.measured_contour?.ToString(),
-                        MeasuredCenter = item.measured_center?.ToString(),
-                        TemplateData = item.template_data?.ToString(),
+                        Status = (item.inspection_result == "NG" ? "불량" : "정상"),
 
-                        TolShape = item.tol_shape,
-                        TolHole = item.tol_hole,
-                        LimitWarn = item.limit_warn,
-                        LimitFail = item.limit_fail,
+                        MeasuredContour = item.measured_contour,
+                        MeasuredCenter = item.measured_center,
+                        TemplateData = null,
 
-                        HoleOffset = item.hole_offset,
-                        AreaSize = item.area_size,
-                        ModelScore = item.model_score,
-                        DefectReason = (item.result == "NG" ? "치수 오차 초과" : "-")
+                        HoleOffset = item.hole_offset ?? 0.0,
+                        AreaSize = item.area_size ?? 0.0,
+                        ModelScore = item.model_score ?? 0.0,
+
+                        TolShape = 0,
+                        TolHole = 0,
+                        LimitWarn = 0,
+                        LimitFail = 0,
+                        DefectReason = item.fail_reason ?? "-"
                     };
                 }
             }
@@ -138,29 +135,39 @@ namespace AMPManager.Core
             return null;
         }
 
-        // [5] 로그 이미지 조회
+        // [5] ★ 로그 이미지 조회 (이 부분이 중요합니다!)
         public async Task<(byte[]?, byte[]?)> GetLogImagesAsync(int mid)
         {
             try
             {
                 var response = await _client.GetAsync($"{BaseUrl}/api/logs/{mid}/images");
+
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();
+
+                    // 서버 응답: { "img1_base64": "...", "img2_base64": "..." }
                     dynamic data = JsonConvert.DeserializeObject(json);
+
                     string s1 = data.img1_base64;
                     string s2 = data.img2_base64;
 
+                    // Base64 문자열을 바이트 배열로 변환
                     byte[]? b1 = !string.IsNullOrEmpty(s1) ? Convert.FromBase64String(s1) : null;
                     byte[]? b2 = !string.IsNullOrEmpty(s2) ? Convert.FromBase64String(s2) : null;
+
                     return (b1, b2);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Image Error] {ex.Message}");
+            }
+            // 실패하더라도 null을 리턴하여 프로그램이 죽지 않게 함
             return (null, null);
         }
 
-        // [6] 통계 조회
+        // [6] 통계
         public async Task<ServerStats?> GetStatisticsAsync(DateTime start, DateTime end)
         {
             try
@@ -187,7 +194,7 @@ namespace AMPManager.Core
             catch { return false; }
         }
 
-        // --- 내부 DTO 클래스들 ---
+        // --- DTO ---
         private class ServerLogItem
         {
             [JsonProperty("mid")] public int mid { get; set; }
@@ -196,22 +203,18 @@ namespace AMPManager.Core
             [JsonProperty("result")] public string result { get; set; } = "";
         }
 
-        // ★ 상세 정보용 DTO (타입 수정됨: string -> object)
-        private class ServerLogDetail : ServerLogItem
+        private class ServerLogDetailResponse
         {
-            // 서버가 JSON 객체로 보내도 받을 수 있게 object로 선언
-            [JsonProperty("measured_contour")] public object measured_contour { get; set; }
-            [JsonProperty("measured_center")] public object measured_center { get; set; }
-            [JsonProperty("template_data")] public object template_data { get; set; }
-
-            [JsonProperty("tol_shape")] public double tol_shape { get; set; }
-            [JsonProperty("tol_hole")] public double tol_hole { get; set; }
-            [JsonProperty("limit_warn")] public double limit_warn { get; set; }
-            [JsonProperty("limit_fail")] public double limit_fail { get; set; }
-
-            [JsonProperty("hole_offset")] public double hole_offset { get; set; }
-            [JsonProperty("area_size")] public double area_size { get; set; }
-            [JsonProperty("model_score")] public double model_score { get; set; }
+            [JsonProperty("measure_id")] public int measure_id { get; set; }
+            [JsonProperty("measured_at")] public DateTime? measured_at { get; set; }
+            [JsonProperty("inspection_result")] public string inspection_result { get; set; }
+            [JsonProperty("measured_center")] public string measured_center { get; set; }
+            [JsonProperty("product_id")] public int product_id { get; set; }
+            [JsonProperty("measured_contour")] public string measured_contour { get; set; }
+            [JsonProperty("model_score")] public double? model_score { get; set; }
+            [JsonProperty("hole_offset")] public double? hole_offset { get; set; }
+            [JsonProperty("area_size")] public double? area_size { get; set; }
+            [JsonProperty("fail_reason")] public string fail_reason { get; set; }
         }
     }
 

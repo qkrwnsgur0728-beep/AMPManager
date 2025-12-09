@@ -32,14 +32,20 @@ namespace AMPManager.ViewModel
 
         public LogViewModel()
         {
-            SearchCommand = new RelayCommand(o => LoadData());
+            // [수정 1] 버튼 클릭 시에는 메시지를 띄우도록(true) 설정
+            SearchCommand = new RelayCommand(o => LoadData(true));
             OpenDetailCommand = new RelayCommand(OpenDetailWindow);
-            LoadData(); // 화면 켜질 때 자동 로드
+
+            // [수정 2] 초기 실행 시에는 메시지를 안 띄우도록(false) 설정
+            LoadData(false);
         }
 
-        private async void LoadData()
+        // [수정 3] 파라미터 추가 (기본값 true)
+        private async void LoadData(bool showMessage = true)
         {
             _allLogs.Clear();
+            LogData.Clear(); // 화면 먼저 비우기
+
             string formattedDate = SearchDate;
 
             // 날짜 포맷 보정
@@ -50,9 +56,14 @@ namespace AMPManager.ViewModel
             var logs = await _apiService.GetLogsAsync(formattedDate);
 
             if (logs == null) return;
+
+            // [수정 4] 데이터가 없을 때 showMessage가 true일 때만 알림창 띄움
             if (logs.Count == 0 && formattedDate.ToUpper() != "ALL")
             {
-                System.Windows.MessageBox.Show($"'{formattedDate}' 날짜의 데이터가 없습니다.", "알림");
+                if (showMessage)
+                {
+                    System.Windows.MessageBox.Show($"'{formattedDate}' 날짜의 데이터가 없습니다.", "알림");
+                }
             }
 
             foreach (var log in logs)
@@ -71,7 +82,6 @@ namespace AMPManager.ViewModel
             foreach (var item in filtered) LogData.Add(item);
         }
 
-        // ★ [수정됨] 상세 창 열기 전 서버에서 데이터를 다 받아옴
         private async void OpenDetailWindow(object? parameter)
         {
             if (parameter is LogEntry log)
