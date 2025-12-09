@@ -24,6 +24,11 @@
                     </Border>
                 </StackPanel>
 
+                <TextBlock Text="{Binding CurrentTimeDisplay}" 
+                           Foreground="#B0B0B0" FontSize="18" FontWeight="Bold" 
+                           FontFamily="Consolas, Courier New"
+                           VerticalAlignment="Center" Margin="50,0,0,0"/>
+
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="20,0">
                     <Button Content="시스템 시작" Command="{Binding StartCommand}" 
                             Width="100" Height="36" Background="{StaticResource AccentColor}" 
@@ -74,7 +79,6 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0" Background="#252530">
-
                 <Button Content="HOME" Command="{Binding NavigateCommand}" CommandParameter="Main">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource NavBtnStyle}">
@@ -140,7 +144,6 @@
                         </Style>
                     </Button.Style>
                 </Button>
-
             </StackPanel>
 
             <Border Grid.Column="1" Background="Transparent" Padding="0">

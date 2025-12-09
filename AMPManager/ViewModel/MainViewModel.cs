@@ -13,7 +13,7 @@ namespace AMPManager.ViewModel
         private BaseViewModel? _currentViewModel;
         private readonly Dictionary<string, BaseViewModel> _viewModels;
 
-        // --- 가동 시간 타이머 ---
+        // --- [기존] 가동 시간 타이머 (시스템 시작 시 작동) ---
         private DispatcherTimer _opTimer;
         private TimeSpan _opDuration;
         private string _operationTimeDisplay = "00:00:00";
@@ -22,6 +22,14 @@ namespace AMPManager.ViewModel
         {
             get => _operationTimeDisplay;
             set => SetProperty(ref _operationTimeDisplay, value);
+        }
+
+        // --- [추가] 현재 시간 표시 (항상 작동) ---
+        private string _currentTimeDisplay = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        public string CurrentTimeDisplay
+        {
+            get => _currentTimeDisplay;
+            set => SetProperty(ref _currentTimeDisplay, value);
         }
 
         // --- 접속자 정보 ---
@@ -47,7 +55,7 @@ namespace AMPManager.ViewModel
         {
             CurrentUser = user;
 
-            // 1. 타이머 초기화
+            // 1. 가동 시간 타이머 초기화 (Start 버튼 누를 때만 감)
             _opTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _opTimer.Tick += (s, e) =>
             {
@@ -55,13 +63,20 @@ namespace AMPManager.ViewModel
                 OperationTimeDisplay = _opDuration.ToString(@"hh\:mm\:ss");
             };
 
-            // 2. 뷰모델 생성
+            // 2. [추가] 현재 시간 시계 타이머 (앱 켜지자마자 항상 감)
+            var clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            clockTimer.Tick += (s, e) =>
+            {
+                CurrentTimeDisplay = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            };
+            clockTimer.Start();
+
+            // 3. 뷰모델 생성
             var homeVM = new HomeViewModel();
             var logVM = new LogViewModel();
             var statVM = new StatisticsViewModel();
-            var settingsVM = new SettingsViewModel(); // 위에서 수정한 클래스 사용
+            var settingsVM = new SettingsViewModel();
 
-            // 이제 SettingsViewModel이 BaseViewModel 자식이므로 오류 없이 들어갑니다.
             _viewModels = new Dictionary<string, BaseViewModel>
             {
                 { "Main", homeVM },
@@ -70,13 +85,13 @@ namespace AMPManager.ViewModel
                 { "Settings", settingsVM }
             };
 
-            // 3. 네비게이션
+            // 4. 네비게이션
             NavigateCommand = new RelayCommand(o =>
             {
                 if (o is string p && _viewModels.ContainsKey(p)) CurrentViewModel = _viewModels[p];
             });
 
-            // 4. 시스템 제어 커맨드
+            // 5. 시스템 제어 커맨드
             StartCommand = new RelayCommand(o =>
             {
                 if (_viewModels["Main"] is HomeViewModel home)
@@ -105,7 +120,7 @@ namespace AMPManager.ViewModel
                 }
             });
 
-            // 5. 초기 화면 설정
+            // 6. 초기 화면 설정
             CurrentViewModel = _viewModels["Main"];
         }
     }

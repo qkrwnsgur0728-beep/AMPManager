@@ -24,6 +24,11 @@
                 <Grid>
                     <Image Source="{Binding CameraImage1}" Stretch="Uniform"/>
 
+                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" 
+                            Background="#80000000" CornerRadius="5" Padding="10,5">
+                        <TextBlock Text="CAM 1 (Top View)" Foreground="#00C1D4" FontWeight="Bold" FontSize="16"/>
+                    </Border>
+
                     <TextBlock Text="CAM 1 (OFF)" 
                                Foreground="{StaticResource SecondaryText}" 
                                FontSize="32" FontWeight="SemiBold"
@@ -39,13 +44,18 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
-
                 </Grid>
             </Border>
 
             <Border Grid.Column="1" Style="{StaticResource PanelStyle}" Margin="5,0,0,0">
                 <Grid>
                     <Image Source="{Binding CameraImage2}" Stretch="Uniform"/>
+
+                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" 
+                            Background="#80000000" CornerRadius="5" Padding="10,5">
+                        <TextBlock Text="CAM 2 (Bottom View)" Foreground="#00C1D4" FontWeight="Bold" FontSize="16"/>
+                    </Border>
+
                     <TextBlock Text="CAM 2 (OFF)" 
                                Foreground="{StaticResource SecondaryText}" 
                                FontSize="32" FontWeight="SemiBold"

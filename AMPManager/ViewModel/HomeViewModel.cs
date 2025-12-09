@@ -222,7 +222,7 @@ namespace AMPManager.ViewModel
                 if (!_timer.IsEnabled)
                 {
                     _timer.Start();
-                    Timer_Tick(null, EventArgs.Empty);
+                    Timer_Tick(null, EventArgs.Empty);  
                 }
             }
         }
@@ -252,7 +252,7 @@ namespace AMPManager.ViewModel
             {
                 // 필요 시 서버 상태 동기화
             }
-            UpdateChartData();
+            UpdateChartData();  
         }
     }
 }
