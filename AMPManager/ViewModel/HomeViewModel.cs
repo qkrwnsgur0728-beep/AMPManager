@@ -28,8 +28,6 @@ namespace AMPManager.ViewModel
         private WebSocketImageService _wsService1 = new WebSocketImageService();
         private WebSocketImageService _wsService2 = new WebSocketImageService();
 
-        private bool _isCameraRunning = false;
-
         public PlotModel CombinedChartModel { get; private set; }
 
         private ImageSource? _cameraImage1;
@@ -48,6 +46,8 @@ namespace AMPManager.ViewModel
         public int CurrentComplete { get => _currentComplete; set => SetProperty(ref _currentComplete, value); }
         public double DefectRate { get => _defectRate; set => SetProperty(ref _defectRate, value); }
 
+        // [삭제됨] TestCommand 제거 완료
+
         public HomeViewModel()
         {
             InitializeCombinedChart();
@@ -57,7 +57,7 @@ namespace AMPManager.ViewModel
 
             // 실시간 판정 결과 수신 (Server -> MQTT -> WPF)
             _mqttService.MessageReceived += OnMqttDataReceived;
-            // MQTT 연결은 데이터 수신을 위해 미리 수행
+            // MQTT 연결은 데이터 수신을 위해 미리 수행 (영상은 버튼 누르면 시작)
             _ = _mqttService.ConnectAsync();
 
             _wsService1.OnImageReceived += HandleImage1;
@@ -142,7 +142,6 @@ namespace AMPManager.ViewModel
             CombinedChartModel.InvalidatePlot(true);
         }
 
-        // [MQTT 수신] 서버가 보내준 판정 결과 처리
         private void OnMqttDataReceived(string jsonPayload)
         {
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -153,7 +152,7 @@ namespace AMPManager.ViewModel
                     if (data == null) return;
 
                     int pid = (data.pid != null) ? (int)data.pid : 0;
-                    string resultStr = (string)data.result; // "OK", "NG"
+                    string resultStr = (string)data.result;
                     bool isDefect = (resultStr == "NG" || resultStr == "DEFECTIVE");
                     string nowTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
@@ -172,7 +171,7 @@ namespace AMPManager.ViewModel
             });
         }
 
-        // [수정] START: API 호출 방식
+        // [시스템 시작] 버튼 클릭 시 실행
         public async void StartSimulation()
         {
             if (!_timer.IsEnabled)
@@ -182,10 +181,10 @@ namespace AMPManager.ViewModel
 
                 if (success)
                 {
-                    // 2. CCTV 켜기: /api/CCTV (action=1)
+                    // 2. CCTV 켜기
                     await _apiService.ControlCctvAsync("1");
 
-                    // 3. 웹소켓 연결 (View 모드) - ★ [수정됨] IP 변경
+                    // 3. 웹소켓 연결 (영상 수신 시작) - IP 192.168.0.28
                     string fastApiIp = "192.168.0.28";
                     int fastApiPort = 8000;
                     string url1 = $"ws://{fastApiIp}:{fastApiPort}/api/view/1";
@@ -204,15 +203,14 @@ namespace AMPManager.ViewModel
             }
         }
 
-        // [수정] RESTART: API 호출 방식
+        // [재가동] 버튼 클릭 시 실행
         public async void RestartSimulation()
         {
             bool success = await _apiService.RestartSystemAsync("1");
 
             if (success)
             {
-                // ★ [수정됨] IP 변경
-                string fastApiIp = "192.168.0.28";
+                string fastApiIp = "192.168.0.28"; // IP 수정됨
                 int fastApiPort = 8000;
                 await _wsService1.ConnectAsync($"ws://{fastApiIp}:{fastApiPort}/api/view/1");
                 await _wsService2.ConnectAsync($"ws://{fastApiIp}:{fastApiPort}/api/view/2");
@@ -229,16 +227,20 @@ namespace AMPManager.ViewModel
             }
         }
 
-        // [수정] STOP: API 호출 방식
+        // [정지] 버튼 클릭 시 실행
         public async void StopSimulation()
         {
             if (_timer.IsEnabled)
             {
                 await _apiService.StopSystemAsync("1");
-                await _apiService.ControlCctvAsync("0"); // CCTV 끄기
+                await _apiService.ControlCctvAsync("0");
 
                 await _wsService1.DisconnectAsync();
                 await _wsService2.DisconnectAsync();
+
+                CameraImage1 = null;
+                CameraImage2 = null;
+
                 _timer.Stop();
             }
         }
