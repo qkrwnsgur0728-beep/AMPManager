@@ -36,6 +36,8 @@ namespace AMPManager.Core
                 if (response.IsSuccessStatusCode)
                 {
                     string json = await response.Content.ReadAsStringAsync();
+                    Debug.WriteLine($"[Login Response]: {json}"); // 디버깅용 로그
+
                     var result = JsonConvert.DeserializeObject<LoginResponse>(json);
 
                     if (result != null && result.Code == 200)
@@ -51,7 +53,7 @@ namespace AMPManager.Core
             return null;
         }
 
-        // [2] [수정됨] 회원가입 (Role 포함 전송)
+        // [2] 회원가입 (Role 포함 전송)
         public async Task<bool> SignupAsync(string id, string pw, string name, int role = 2)
         {
             try
@@ -88,8 +90,7 @@ namespace AMPManager.Core
             return false;
         }
 
-        // --- [기존 기능 유지] ---
-
+        // [3] 로그 조회
         public async Task<List<LogEntry>> GetLogsAsync(string date)
         {
             try
@@ -101,6 +102,8 @@ namespace AMPManager.Core
                 if (response.IsSuccessStatusCode)
                 {
                     string json = await response.Content.ReadAsStringAsync();
+                    Debug.WriteLine($"[GetLogs Raw]: {json}"); // 데이터가 안 뜨면 이 로그를 확인해야 함
+
                     var list = JsonConvert.DeserializeObject<List<ServerLogItem>>(json);
                     if (list == null) return new List<LogEntry>();
 
@@ -113,10 +116,14 @@ namespace AMPManager.Core
                     }).ToList();
                 }
             }
-            catch (Exception ex) { Debug.WriteLine($"[Logs Error] {ex.Message}"); }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Logs Error] {ex.Message}");
+            }
             return new List<LogEntry>();
         }
 
+        // [4] 로그 이미지 조회
         public async Task<(byte[]?, byte[]?)> GetLogImagesAsync(int mid)
         {
             try
@@ -137,6 +144,7 @@ namespace AMPManager.Core
             return (null, null);
         }
 
+        // [5] 측정 결과 업로드
         public async Task UploadMeasurementAsync(int pid, string result, byte[]? img1, byte[]? img2)
         {
             try
@@ -154,19 +162,33 @@ namespace AMPManager.Core
             catch { }
         }
 
+        // [6] 통계 데이터 조회 (가장 중요한 부분)
         public async Task<ServerStats?> GetStatisticsAsync(DateTime start, DateTime end)
         {
             try
             {
                 var payload = new { startDate = start.ToString("yyyy-MM-dd"), endDate = end.ToString("yyyy-MM-dd") };
                 var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
+
                 var response = await _client.PostAsync($"{BaseUrl}/api/statistics", content);
+
                 if (response.IsSuccessStatusCode)
                 {
-                    return JsonConvert.DeserializeObject<ServerStats>(await response.Content.ReadAsStringAsync());
+                    string json = await response.Content.ReadAsStringAsync();
+                    Debug.WriteLine($"[Statistics Raw]: {json}"); // ★ 여기에 값이 찍히는지 확인 필수
+
+                    // JSON 매핑이 안 되면 객체는 생성되나 내부 값들이 0이나 null이 됨
+                    return JsonConvert.DeserializeObject<ServerStats>(json);
+                }
+                else
+                {
+                    Debug.WriteLine($"[Statistics Failed]: {response.StatusCode}");
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Stats Error] {ex.Message}");
+            }
             return null;
         }
 
@@ -182,33 +204,62 @@ namespace AMPManager.Core
             catch { return false; }
         }
 
+        // --- 내부 Model 클래스 (JsonProperty 추가됨) ---
+        // 서버에서 오는 필드명(예: snake_case)과 정확히 매칭되도록 설정
+
         private class ServerLogItem
         {
+            [JsonProperty("mid")]
             public int mid { get; set; }
+
+            [JsonProperty("timestamp")]
             public string timestamp { get; set; } = "";
+
+            [JsonProperty("product_name")]
             public string product_name { get; set; } = "";
+
+            [JsonProperty("result")]
             public string result { get; set; } = "";
         }
     }
 
+    // --- 통계 관련 모델 클래스 ---
     public class ServerStats
     {
+        [JsonProperty("daily_data")]
         public List<DailyStatItem> daily_data { get; set; } = new List<DailyStatItem>();
+
+        [JsonProperty("counts")]
         public DefectCountItem counts { get; set; } = new DefectCountItem();
     }
 
     public class DailyStatItem
     {
+        [JsonProperty("date")]
         public string date { get; set; } = "";
+
+        [JsonProperty("total")]
         public int total { get; set; }
+
+        [JsonProperty("defect")]
         public int defect { get; set; }
     }
 
     public class DefectCountItem
     {
+        // ★ 중요: 서버가 보내는 키 값과 정확히 같아야 함.
+        // 예를 들어 서버가 "shape_defect"로 보내는데 여기서 "shape"로 받으면 값이 0이 됨.
+
+        [JsonProperty("shape")]
         public int shape { get; set; }
+
+        [JsonProperty("center")]
         public int center { get; set; }
+
+        [JsonProperty("rust")]
         public int rust { get; set; }
+
+        [JsonProperty("total_ng")]
         public int total_ng { get; set; }
     }
 }

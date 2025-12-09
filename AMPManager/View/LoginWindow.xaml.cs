@@ -11,7 +11,19 @@ namespace AMPManager.View
             var vm = new LoginViewModel();
 
             // 뷰모델의 "닫기" 신호가 오면 실제로 창을 닫고 DialogResult를 true로 설정
-            vm.CloseAction = () => { this.DialogResult = true; this.Close(); };
+            vm.CloseAction = () =>
+            {
+                try
+                {
+                    // ShowDialog()로 열렸을 때만 작동
+                    this.DialogResult = true;
+                }
+                catch (InvalidOperationException)
+                {
+                    // Show()로 열렸으면 예외 발생 -> 그냥 무시하고 닫기 진행
+                }
+                this.Close();
+            };
 
             this.DataContext = vm;
         }
