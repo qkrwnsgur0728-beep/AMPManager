@@ -7,7 +7,8 @@
         Title="AMP Manager" 
         Height="900" Width="1600"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource AppBackground}">
+        Background="{StaticResource AppBackground}"
+        KeyDown="Window_KeyDown">
 
     <Grid>
         <Grid.RowDefinitions>
