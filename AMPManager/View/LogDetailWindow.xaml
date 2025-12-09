@@ -40,7 +40,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="#2F2F3D" CornerRadius="10" Margin="5" Padding="10">
+            <Border Grid.Column="0" Background="#2F2F3D" CornerRadius="10" Margin="5" Padding="10" BorderBrush="#00FF00" BorderThickness="3">
                 <Grid>
                     <TextBlock Text="형상 분석 (Shape)" Foreground="#00C1D4" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Top"/>
                     <lvc:CartesianChart Series="{Binding ShapeSeriesCollection}" 
@@ -64,9 +64,10 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="1" Background="#2F2F3D" CornerRadius="10" Margin="5" Padding="10">
+            <Border Grid.Column="1" Background="#2F2F3D" CornerRadius="10" Margin="5" Padding="10" BorderBrush="#00FF00" BorderThickness="3">
                 <Grid>
-                    <TextBlock Text="편차 프로파일 (Deviation)" Foreground="#00C1D4" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+                    <TextBlock Text="편차 프로파일 (Deviation)" Foreground="#00C1D4" FontWeight="Bold" 
+                               HorizontalAlignment="Center" VerticalAlignment="Top"/>
                     <lvc:CartesianChart Series="{Binding DeviationSeriesCollection}" Margin="0,25,0,0" LegendLocation="Bottom">
                         <lvc:CartesianChart.AxisX>
                             <lvc:Axis Labels="{Binding DeviationLabels}" ShowLabels="False">
@@ -86,7 +87,7 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="2" Background="#2F2F3D" CornerRadius="10" Margin="5" Padding="10">
+            <Border Grid.Column="2" Background="#2F2F3D" CornerRadius="10" Margin="5" Padding="10" BorderBrush="#00FF00" BorderThickness="3">
                 <Grid>
                     <TextBlock Text="동심도 (Concentricity)" Foreground="#00C1D4" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Top"/>
                     <lvc:CartesianChart Series="{Binding ConcentricitySeriesCollection}" Margin="0,25,0,0" LegendLocation="Bottom" Hoverable="False" DataTooltip="{x:Null}">
@@ -111,7 +112,7 @@
 
         <Border Grid.Row="2" Background="#2F2F3D" CornerRadius="10" Padding="20" Margin="0,0,0,10">
             <StackPanel>
-                <TextBlock Text="검사 상세 리포트" Foreground="#00C1D4" FontSize="18" FontWeight="Bold" Margin="0,0,0,15"/>
+                <TextBlock Text="검사 상세 리포트" Foreground="#00C1D4" FontWeight="Bold" Margin="0,0,0,15"/>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="100"/>
@@ -150,9 +151,9 @@
                     <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding DefectReason}" Style="{StaticResource Val}"/>
 
                     <TextBlock Grid.Row="0" Grid.Column="4" Text="Hole Offset"/>
-                    <TextBlock Grid.Row="0" Grid.Column="5" Text="{Binding HoleOffset, StringFormat={}{0:F3} px}" Style="{StaticResource Val}"/>
+                    <TextBlock Grid.Row="0" Grid.Column="5" Text="{Binding HoleOffset, StringFormat={}{0:F3} mm}" Style="{StaticResource Val}"/>
                     <TextBlock Grid.Row="1" Grid.Column="4" Text="Area Size"/>
-                    <TextBlock Grid.Row="1" Grid.Column="5" Text="{Binding AreaSize, StringFormat={}{0:F2} px²}" Style="{StaticResource Val}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="5" Text="{Binding AreaSize, StringFormat={}{0:F2} mm²}" Style="{StaticResource Val}"/>
                 </Grid>
             </StackPanel>
         </Border>

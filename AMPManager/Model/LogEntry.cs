@@ -7,6 +7,33 @@ using LiveCharts.Wpf;
 
 namespace AMPManager.Model
 {
+    // [변경 시작] DefectMapper 정적 클래스 추가 (불량 코드 매핑)
+    public static class DefectMapper
+    {
+        private static readonly Dictionary<string, string> DefectReasons = new Dictionary<string, string>
+        {
+            { "000", "정상 (Pass)" },
+            { "100", "형상 불량" },
+            { "010", "구멍 편심" },
+            { "001", "녹 발생" },
+            { "110", "치수 불량" },
+            { "101", "형상+녹" },
+            { "011", "편심+녹" },
+            { "111", "전체 불량" }
+        };
+
+        public static string GetReason(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return "-";
+            if (DefectReasons.TryGetValue(code.Trim(), out string? reason))
+            {
+                return reason;
+            }
+            return code; // 매핑되는 코드가 없으면 코드를 그대로 반환
+        }
+    }
+    // [변경 끝]
+
     public class LogEntry
     {
         // ============================
